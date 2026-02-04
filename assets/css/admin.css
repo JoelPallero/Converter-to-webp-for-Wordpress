@@ -1,0 +1,245 @@
+/* Asegurar que el contenedor use todo el ancho disponible */
+body.toplevel_page_dn325-plugins .dn325-webp-wrap,
+body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+    max-width: 100% !important;
+    margin: 20px 0 !important;
+    padding: 0 !important;
+}
+
+.dn325-webp-wrap {
+    max-width: 100%;
+    margin: 20px 0;
+    padding: 0;
+}
+
+.dn325-webp-info {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.dn325-webp-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.dn325-webp-card h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.dn325-webp-card p {
+    color: #646970;
+    margin-bottom: 20px;
+}
+
+.dn325-webp-installed {
+    background: #f0f6fc;
+    padding: 10px;
+    border-left: 4px solid #2271b1;
+    margin: 15px 0;
+}
+
+.dn325-webp-note {
+    color: #646970;
+    font-size: 13px;
+    margin-top: 15px;
+}
+
+.dn325-webp-stats {
+    background: #f6f7f7;
+    padding: 15px;
+    border-radius: 4px;
+    margin: 15px 0;
+}
+
+.dn325-webp-stats p {
+    margin: 0;
+    font-size: 16px;
+}
+
+.dn325-webp-stats strong {
+    color: #1d2327;
+}
+
+.dn325-webp-stats span {
+    color: #2271b1;
+    font-weight: bold;
+    font-size: 20px;
+    margin-left: 10px;
+}
+
+.dn325-webp-actions {
+    margin: 30px 0;
+}
+
+.dn325-webp-actions .button {
+    margin-right: 10px;
+    font-size: 14px;
+    height: auto;
+    padding: 8px 16px;
+    line-height: 1.5;
+}
+
+.dn325-webp-actions .button.button-large {
+    font-size: 16px;
+    padding: 12px 24px;
+    line-height: 1.5;
+}
+
+/* Progress Bar */
+.dn325-webp-progress {
+    margin: 30px 0;
+    padding: 20px;
+    background: #f6f7f7;
+    border-radius: 4px;
+}
+
+.dn325-webp-progress-bar {
+    width: 100%;
+    height: 30px;
+    background: #f0f0f1;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.dn325-webp-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2271b1, #135e96);
+    width: 0%;
+    transition: width 0.3s ease;
+    animation: progress-animation 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-animation {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.dn325-webp-progress-text {
+    text-align: center;
+    color: #646970;
+    font-weight: 500;
+    margin: 10px 0;
+}
+
+.dn325-webp-progress-stats {
+    text-align: center;
+    margin-top: 15px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #646970;
+}
+
+.dn325-webp-progress-details {
+    margin-top: 15px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 13px;
+    color: #646970;
+    line-height: 1.6;
+}
+
+.dn325-webp-progress-details .progress-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.dn325-webp-progress-details .progress-item:last-child {
+    border-bottom: none;
+}
+
+/* Result Messages */
+.dn325-webp-result {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 4px;
+    display: none;
+    line-height: 1.6;
+}
+
+.dn325-webp-result.success {
+    display: block;
+    background: #d1e7dd;
+    border: 1px solid #badbcc;
+    color: #0f5132;
+}
+
+.dn325-webp-result.error {
+    display: block;
+    background: #f8d7da;
+    border: 1px solid #f5c2c7;
+    color: #842029;
+}
+
+.dn325-webp-result.error strong {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.dn325-webp-result.info {
+    display: block;
+    background: #cfe2ff;
+    border: 1px solid #b6d4fe;
+    color: #084298;
+}
+
+.dn325-webp-result .dashicons {
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+/* Tabs */
+.dn325-webp-tabs {
+    margin-top: 20px;
+}
+
+.dn325-webp-tab-content {
+    margin-top: 20px;
+}
+
+.dn325-webp-tab-content .tab-pane {
+    display: none;
+}
+
+.dn325-webp-tab-content .tab-pane.active {
+    display: block;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .dn325-webp-wrap {
+        margin: 10px;
+    }
+
+    .dn325-webp-card {
+        padding: 15px;
+    }
+
+    .dn325-webp-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .dn325-webp-actions .button {
+        width: 100%;
+        margin-right: 0;
+    }
+}
