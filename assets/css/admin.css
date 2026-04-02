@@ -222,6 +222,113 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
     display: block;
 }
 
+/* Image List and Grid */
+.dn325-webp-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: #f6f7f7;
+    border: 1px solid #ccd0d4;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    margin-top: 20px;
+}
+
+.dn325-webp-images-list {
+    border: 1px solid #ccd0d4;
+    border-radius: 0 0 4px 4px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: #fff;
+}
+
+.dn325-webp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.dn325-webp-image-item {
+    position: relative;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.dn325-webp-image-item:hover {
+    border-color: #2271b1;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.dn325-webp-image-item label {
+    display: block;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.dn325-webp-image-checkbox {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 10;
+    margin: 0 !important;
+}
+
+.dn325-webp-image-preview {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f1;
+    margin-bottom: 5px;
+}
+
+.dn325-webp-image-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
+}
+
+.dn325-webp-image-preview .dashicons {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    color: #ccd0d4;
+}
+
+.dn325-webp-image-info {
+    font-size: 11px;
+    padding: 2px 5px;
+}
+
+.dn325-webp-image-title {
+    display: block;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.dn325-webp-image-meta {
+    display: block;
+    color: #646970;
+}
+
+.dn325-webp-loading-images {
+    padding: 40px;
+    text-align: center;
+    color: #646970;
+}
+
+/* Result Item Status */
+.progress-item.success { color: #0f5132; }
+.progress-item.error { color: #842029; }
+
 /* Responsive */
 @media (max-width: 782px) {
     .dn325-webp-wrap {
@@ -241,5 +348,9 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
     .dn325-webp-actions .button {
         width: 100%;
         margin-right: 0;
+    }
+    
+    .dn325-webp-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
 }

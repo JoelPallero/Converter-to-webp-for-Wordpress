@@ -139,7 +139,7 @@ class DN325_WebP_Admin {
 
                 <div class="dn325-webp-card">
                     <h2><?php _e('Conversión Manual', 'dn325-webp'); ?></h2>
-                    <p><?php _e('Puedes convertir manualmente todas las imágenes existentes que fueron subidas antes de la instalación del plugin.', 'dn325-webp'); ?></p>
+                    <p><?php _e('Puedes convertir manualmente imágenes existentes que fueron subidas antes de la instalación del plugin.', 'dn325-webp'); ?></p>
                     
                     <div class="dn325-webp-stats">
                         <p>
@@ -148,12 +148,30 @@ class DN325_WebP_Admin {
                         </p>
                     </div>
 
+                    <div class="dn325-webp-selection-header">
+                        <label>
+                            <input type="checkbox" id="dn325-webp-select-all">
+                            <strong><?php _e('Seleccionar Todas', 'dn325-webp'); ?></strong>
+                        </label>
+                        <span id="dn325-webp-selected-count">0 <?php _e('seleccionadas', 'dn325-webp'); ?></span>
+                    </div>
+
+                    <div id="dn325-webp-images-list" class="dn325-webp-images-list">
+                        <!-- La lista se cargará vía AJAX -->
+                        <div class="dn325-webp-loading-images">
+                            <span class="spinner is-active"></span> <?php _e('Cargando imágenes...', 'dn325-webp'); ?>
+                        </div>
+                    </div>
+
                     <div class="dn325-webp-actions">
                         <button type="button" id="dn325-webp-convert-btn" class="button button-primary button-large">
                             <?php _e('Convertir Todas las Imágenes', 'dn325-webp'); ?>
                         </button>
+                        <button type="button" id="dn325-webp-convert-selected-btn" class="button button-primary button-large" disabled style="display: none;">
+                            <?php _e('Convertir Seleccionadas', 'dn325-webp'); ?>
+                        </button>
                         <button type="button" id="dn325-webp-scan-btn" class="button button-secondary button-large">
-                            <?php _e('Actualizar Conteo', 'dn325-webp'); ?>
+                            <?php _e('Actualizar Lista', 'dn325-webp'); ?>
                         </button>
                     </div>
 
@@ -167,7 +185,7 @@ class DN325_WebP_Admin {
                             <strong><?php _e('Progreso:', 'dn325-webp'); ?></strong>
                             <span id="dn325-webp-converted">0</span> / 
                             <span id="dn325-webp-total">0</span> 
-                            <?php _e('imágenes convertidas', 'dn325-webp'); ?>
+                            <?php _e('imágenes procesadas', 'dn325-webp'); ?>
                         </div>
                     </div>
 

@@ -299,16 +299,40 @@ class DN325_WebP_Converter {
 
         // Aplicar filtro de año/mes si está configurado
         $filter_date = DN325_WebP_Settings::get_filter_date();
-        if ($filter_date && !empty($filter_date['year']) && !empty($filter_date['month'])) {
-            $args['date_query'] = [
-                [
-                    'year' => intval($filter_date['year']),
-                    'month' => intval($filter_date['month']),
-                ]
-            ];
+        if ($filter_date && (!empty($filter_date['year']) || !empty($filter_date['month']))) {
+            $date_query = [];
+            if (!empty($filter_date['year'])) {
+                $date_query['year'] = intval($filter_date['year']);
+            }
+            if (!empty($filter_date['month'])) {
+                $date_query['month'] = intval($filter_date['month']);
+            }
+            $args['date_query'] = [$date_query];
         }
 
         return get_posts($args);
+    }
+
+    /**
+     * Obtiene una lista detallada de imágenes convertibles
+     */
+    public static function get_convertible_images_list($limit = -1, $offset = 0) {
+        $image_ids = self::get_convertible_images($limit, $offset);
+        $images_list = [];
+
+        foreach ($image_ids as $id) {
+            $thumbnail = wp_get_attachment_image_src($id, 'thumbnail');
+            $images_list[] = [
+                'id' => $id,
+                'title' => get_the_title($id),
+                'thumbnail' => $thumbnail ? $thumbnail[0] : '',
+                'url' => wp_get_attachment_url($id),
+                'mime' => get_post_mime_type($id),
+                'date' => get_the_date('', $id)
+            ];
+        }
+
+        return $images_list;
     }
 
     /**

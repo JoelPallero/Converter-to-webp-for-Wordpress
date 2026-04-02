@@ -37,6 +37,8 @@
                             .addClass('success')
                             .html('<span class="dashicons dashicons-yes-alt"></span>' + response.data.message)
                             .show();
+                        // Recargar lista si cambia la configuración
+                        loadImagesList();
                     } else {
                         $result
                             .removeClass('success')
@@ -56,6 +58,7 @@
         });
 
         const $convertBtn = $('#dn325-webp-convert-btn');
+        const $convertSelectedBtn = $('#dn325-webp-convert-selected-btn');
         const $scanBtn = $('#dn325-webp-scan-btn');
         const $progress = $('#dn325-webp-progress');
         const $progressFill = $progress.find('.dn325-webp-progress-fill');
@@ -65,70 +68,153 @@
         const $totalCount = $('#dn325-webp-total-count');
         const $converted = $('#dn325-webp-converted');
         const $total = $('#dn325-webp-total');
+        const $imagesList = $('#dn325-webp-images-list');
+        const $selectAll = $('#dn325-webp-select-all');
+        const $selectedCount = $('#dn325-webp-selected-count');
 
         let isConverting = false;
         let totalConverted = 0;
         let totalImages = 0;
+        let selectedIds = [];
 
-        // Botón para actualizar conteo
+        // Cargar lista inicial
+        loadImagesList();
+
+        // Botón para actualizar lista
         $scanBtn.on('click', function(e) {
             e.preventDefault();
-            updateImageCount();
+            loadImagesList();
         });
 
         // Botón para convertir todas las imágenes
         $convertBtn.on('click', function(e) {
             e.preventDefault();
             
-            if (isConverting) {
-                return;
+            if (isConverting) return;
+
+            if (!confirm(dn325WebP.strings.confirm_convert)) return;
+
+            startConversion(false);
+        });
+
+        // Botón para convertir seleccionadas
+        $convertSelectedBtn.on('click', function(e) {
+            e.preventDefault();
+            
+            if (isConverting) return;
+
+            const count = selectedIds.length;
+            if (count === 0) return;
+
+            if (!confirm('¿Estás seguro de que deseas convertir las ' + count + ' imágenes seleccionadas?')) return;
+
+            startConversion(true);
+        });
+
+        // Manejo de "Seleccionar Todas"
+        $selectAll.on('change', function() {
+            const isChecked = $(this).is(':checked');
+            $('.dn325-webp-image-checkbox').prop('checked', isChecked).trigger('change');
+        });
+
+        // Manejo de checkboxes individuales (delegado)
+        $imagesList.on('change', '.dn325-webp-image-checkbox', function() {
+            const id = parseInt($(this).val());
+            const isChecked = $(this).is(':checked');
+
+            if (isChecked) {
+                if (!selectedIds.includes(id)) selectedIds.push(id);
+            } else {
+                selectedIds = selectedIds.filter(item => item !== id);
+                $selectAll.prop('checked', false);
             }
 
-            if (!confirm(dn325WebP.strings.confirm_convert)) {
-                return;
-            }
-
-            startConversion();
+            updateSelectionUI();
         });
 
         /**
-         * Actualiza el conteo de imágenes
+         * Carga la lista de imágenes
          */
-        function updateImageCount() {
+        function loadImagesList() {
             $.ajax({
                 url: dn325WebP.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'dn325_webp_get_count',
-                    nonce: dn325WebP.nonce
+                    action: 'dn325_webp_get_images_list',
+                    nonce: dn325WebP.nonce,
+                    limit: -1
                 },
                 beforeSend: function() {
-                    $scanBtn.prop('disabled', true).text('Escaneando...');
+                    $imagesList.html('<div class="dn325-webp-loading-images"><span class="spinner is-active"></span> ' + dn325WebP.strings.loading || 'Cargando imágenes...' + '</div>');
+                    $scanBtn.prop('disabled', true);
+                    selectedIds = [];
+                    updateSelectionUI();
                 },
                 success: function(response) {
                     if (response.success) {
-                        $totalCount.text(response.data.count);
-                        showResult('info', 'Conteo actualizado: ' + response.data.count + ' imágenes disponibles');
+                        const images = response.data.images;
+                        $totalCount.text(images.length);
+                        
+                        if (images.length === 0) {
+                            $imagesList.html('<p>' + dn325WebP.strings.no_images + '</p>');
+                            return;
+                        }
+
+                        let html = '<div class="dn325-webp-grid">';
+                        images.forEach(function(img) {
+                            html += `
+                                <div class="dn325-webp-image-item" data-id="${img.id}">
+                                    <label>
+                                        <input type="checkbox" class="dn325-webp-image-checkbox" value="${img.id}">
+                                        <div class="dn325-webp-image-preview">
+                                            ${img.thumbnail ? `<img src="${img.thumbnail}" alt="${img.title}">` : '<span class="dashicons dashicons-format-image"></span>'}
+                                        </div>
+                                        <div class="dn325-webp-image-info">
+                                            <span class="dn325-webp-image-title">${img.title || 'ID: ' + img.id}</span>
+                                            <span class="dn325-webp-image-meta">${img.mime.split('/')[1].toUpperCase()} | ${img.date}</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        $imagesList.html(html);
                     } else {
-                        showResult('error', response.data.message || 'Error al obtener el conteo');
+                        $imagesList.html('<p class="error">' + (response.data.message || 'Error al cargar lista') + '</p>');
                     }
                 },
                 error: function() {
-                    showResult('error', 'Error de conexión');
+                    $imagesList.html('<p class="error">Error de conexión al cargar lista</p>');
                 },
                 complete: function() {
-                    $scanBtn.prop('disabled', false).text('Actualizar Conteo');
+                    $scanBtn.prop('disabled', false);
                 }
             });
         }
 
         /**
-         * Inicia la conversión de todas las imágenes
+         * Actualiza la UI de selección
          */
-        function startConversion() {
+        function updateSelectionUI() {
+            const count = selectedIds.length;
+            $selectedCount.text(count + ' seleccionadas');
+            
+            if (count > 0) {
+                $convertSelectedBtn.show().prop('disabled', false);
+                $convertBtn.hide();
+            } else {
+                $convertSelectedBtn.hide().prop('disabled', true);
+                $convertBtn.show();
+            }
+        }
+
+        /**
+         * Inicia la conversión
+         */
+        function startConversion(useSelected) {
             isConverting = true;
             totalConverted = 0;
-            totalImages = parseInt($totalCount.text()) || 0;
+            totalImages = useSelected ? selectedIds.length : parseInt($totalCount.text()) || 0;
 
             if (totalImages === 0) {
                 isConverting = false;
@@ -137,6 +223,7 @@
             }
 
             $convertBtn.prop('disabled', true).text('Convirtiendo...');
+            $convertSelectedBtn.prop('disabled', true).text('Convirtiendo...');
             $progress.show();
             $result.hide();
             $progressDetails.html('');
@@ -145,81 +232,70 @@
             $total.text(totalImages);
             $converted.text('0');
 
-            convertBatch(0);
+            convertBatch(0, useSelected ? selectedIds : []);
         }
 
         /**
          * Convierte un lote de imágenes
          */
-        function convertBatch(offset) {
+        function convertBatch(offset, ids) {
+            const data = {
+                action: 'dn325_webp_convert_all',
+                nonce: dn325WebP.nonce,
+                batch_size: 20,
+                offset: offset,
+                skip_references: true
+            };
+
+            if (ids && ids.length > 0) {
+                data.image_ids = ids;
+            }
+
             $.ajax({
                 url: dn325WebP.ajax_url,
                 type: 'POST',
                 timeout: 300000,
-                data: {
-                    action: 'dn325_webp_convert_all',
-                    nonce: dn325WebP.nonce,
-                    batch_size: 20,
-                    offset: offset,
-                    skip_references: true
-                },
+                data: data,
                 success: function(response) {
                     if (response.success) {
                         const data = response.data;
                         totalConverted += data.converted;
 
                         // Actualizar progreso
-                        const percentage = totalImages > 0 ? Math.min(95, (totalConverted / totalImages) * 100) : 0;
+                        const percentage = totalImages > 0 ? Math.min(100, (totalConverted / totalImages) * 100) : 0;
                         $progressFill.css('width', percentage + '%');
                         $converted.text(totalConverted);
                         $progressText.text(
                             data.message || dn325WebP.strings.converting
                         );
 
-                        // Actualizar detalles de progreso
+                        // Actualizar detalles
                         let detailsHtml = $progressDetails.html();
                         if (data.results && data.results.length > 0) {
                             data.results.forEach(function(result) {
-                                if (!result.success) {
-                                    detailsHtml += '<div class="progress-item">Error en imagen ID ' + result.id + ': ' + result.message + '</div>';
-                                } else {
-                                    detailsHtml += '<div class="progress-item">Imagen ID ' + result.id + ' convertida exitosamente</div>';
-                                }
+                                detailsHtml += `<div class="progress-item ${result.success ? 'success' : 'error'}">
+                                    ID ${result.id}: ${result.message}
+                                </div>`;
                             });
-                        } else {
-                            detailsHtml += '<div class="progress-item">Procesadas ' + (data.processed || 0) + ' imágenes. Convertidas: ' + data.converted + ', Errores: ' + (data.errors || 0) + '</div>';
                         }
                         $progressDetails.html(detailsHtml);
-                        if (detailsHtml) {
-                            $progressDetails.scrollTop($progressDetails[0].scrollHeight);
-                        }
+                        $progressDetails.scrollTop($progressDetails[0].scrollHeight);
 
                         if (data.completed) {
-                            finishConversion(true, dn325WebP.strings.success + '. Total convertidas: ' + totalConverted);
+                            finishConversion(true, dn325WebP.strings.success + '. Total: ' + totalConverted);
                         } else if (data.has_more) {
-                            const delay = data.timeout ? 1000 : 300;
                             setTimeout(function() {
-                                convertBatch(data.offset);
-                            }, delay);
+                                convertBatch(data.offset, ids);
+                            }, 300);
                         } else {
-                            finishConversion(true, dn325WebP.strings.success + '. Total convertidas: ' + totalConverted);
+                            finishConversion(true, dn325WebP.strings.success);
                         }
                     } else {
                         finishConversion(false, response.data.message || dn325WebP.strings.error);
                     }
                 },
-                error: function(xhr, status, error) {
-                    if (status === 'timeout' || status === 'error') {
-                        const currentOffset = offset;
-                        showResult('info', 'Timeout detectado. Reintentando desde la imagen ' + (currentOffset + 1) + '...');
-                        setTimeout(function() {
-                            convertBatch(currentOffset);
-                        }, 2000);
-                    } else {
-                        isConverting = false;
-                        $convertBtn.prop('disabled', false).text('Convertir Todas las Imágenes');
-                        finishConversion(false, 'Error de conexión durante la conversión: ' + error);
-                    }
+                error: function() {
+                    finishConversion(false, 'Error de conexión');
                 }
             });
         }
@@ -228,29 +304,24 @@
          * Finaliza la conversión
          */
         function finishConversion(success, message) {
+            isConverting = false;
+            $convertBtn.prop('disabled', false).text('Convertir Todas las Imágenes');
+            $convertSelectedBtn.prop('disabled', false).text('Convertir Seleccionadas');
+            
             if (success) {
-                isConverting = false;
-                $convertBtn.prop('disabled', false).text('Convertir Todas las Imágenes');
                 $progressFill.css('width', '100%');
                 $progressText.text(dn325WebP.strings.success);
                 setTimeout(function() {
                     $progress.hide();
                     showResult('success', message);
-                }, 1000);
-                updateImageCount();
+                    loadImagesList();
+                }, 1500);
             } else {
-                if (message && (message.indexOf('timeout') === -1 && message.indexOf('Reintentando') === -1)) {
-                    isConverting = false;
-                    $convertBtn.prop('disabled', false).text('Convertir Todas las Imágenes');
-                    $progress.hide();
-                }
+                $progress.hide();
                 showResult('error', message);
             }
         }
 
-        /**
-         * Muestra un mensaje de resultado
-         */
         function showResult(type, message) {
             const icon = type === 'success' ? 'yes-alt' : (type === 'error' ? 'warning' : 'info');
             $result

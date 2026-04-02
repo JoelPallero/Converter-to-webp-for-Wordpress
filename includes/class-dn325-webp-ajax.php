@@ -7,6 +7,7 @@ class DN325_WebP_Ajax {
         add_action('wp_ajax_dn325_webp_convert_all', [__CLASS__, 'convert_all_images']);
         add_action('wp_ajax_dn325_webp_convert_single', [__CLASS__, 'convert_single_image']);
         add_action('wp_ajax_dn325_webp_get_count', [__CLASS__, 'get_image_count']);
+        add_action('wp_ajax_dn325_webp_get_images_list', [__CLASS__, 'get_images_list']);
         add_action('wp_ajax_dn325_webp_update_references', [__CLASS__, 'update_all_references']);
         add_action('wp_ajax_dn325_webp_save_settings', [__CLASS__, 'handle_save_settings']);
     }
@@ -30,6 +31,26 @@ class DN325_WebP_Ajax {
     }
 
     /**
+     * Obtiene la lista de imágenes con detalles
+     */
+    public static function get_images_list() {
+        check_ajax_referer('dn325_webp_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'dn325-webp')]);
+        }
+
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : -1;
+        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+
+        $images = DN325_WebP_Converter::get_convertible_images_list($limit, $offset);
+
+        wp_send_json_success([
+            'images' => $images
+        ]);
+    }
+
+    /**
      * Convierte todas las imágenes
      */
     public static function convert_all_images() {
@@ -47,8 +68,20 @@ class DN325_WebP_Ajax {
         // Reducir batch size para evitar timeouts
         $batch_size = isset($_POST['batch_size']) ? intval($_POST['batch_size']) : 20;
         $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+        $selected_ids = isset($_POST['image_ids']) ? (array)$_POST['image_ids'] : [];
 
-        $images = DN325_WebP_Converter::get_convertible_images($batch_size, $offset);
+        if (!empty($selected_ids)) {
+            // Si hay IDs seleccionados, procesar solo esos en este lote
+            $images = array_slice($selected_ids, $offset, $batch_size);
+            $total_to_process = count($selected_ids);
+        } else {
+            // Si no hay IDs seleccionados, procesar todos según filtros
+            $images = DN325_WebP_Converter::get_convertible_images($batch_size, $offset);
+            
+            // Obtener el total según filtros
+            $all_convertible = DN325_WebP_Converter::get_convertible_images();
+            $total_to_process = count($all_convertible);
+        }
         
         if (empty($images)) {
             wp_send_json_success([

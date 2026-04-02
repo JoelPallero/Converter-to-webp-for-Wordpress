@@ -1,14 +1,16 @@
 <?php
 /**
  * Plugin Name: DN325 WebP Converter
- * Description: Convierte automáticamente todas las imágenes subidas a formato WebP con 100% de calidad. Incluye opción para convertir imágenes existentes.
+ * Description: Convierte automáticamente todas las imágenes subidas a formato WebP con 100% de calidad. Incluye opción para convertir imágenes existentes por lotes o selección individual.
  * Version: 1.0.0
  * Author: Joel Pallero
  * Author URI: https://joelpallero.com.ar
  * Plugin URI: https://joelpallero.com.ar/productos
  * Text Domain: dn325-webp
  * Requires at least: 6.0
- * Requires PHP: 7.6
+ * Requires PHP: 7.4
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Plugin Icon: assets/icons/icon.svg
  */
 
