@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 
-class DN325_WebP_Loader {
+class NABI_WebP_Loader {
 
     public static function init() {
         if (is_admin()) {
@@ -11,17 +11,19 @@ class DN325_WebP_Loader {
     }
 
     private static function load_admin() {
-        if (class_exists('DN325_WebP_Admin')) {
-            DN325_WebP_Admin::init();
+        if (class_exists('NABI_WebP_Admin')) {
+            NABI_WebP_Admin::init();
         }
-        if (class_exists('DN325_WebP_Ajax')) {
-            DN325_WebP_Ajax::init();
+        if (class_exists('NABI_WebP_Ajax')) {
+            NABI_WebP_Ajax::init();
         }
     }
 
     private static function load_converter() {
-        if (class_exists('DN325_WebP_Converter')) {
-            DN325_WebP_Converter::init();
+        if (class_exists('NABI_WebP_Converter')) {
+            NABI_WebP_Converter::init();
         }
     }
 }
+
+

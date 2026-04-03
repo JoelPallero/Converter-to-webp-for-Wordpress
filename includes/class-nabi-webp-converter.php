@@ -1,13 +1,13 @@
 <?php
 defined('ABSPATH') || exit;
 
-class DN325_WebP_Converter {
+class NABI_WebP_Converter {
 
     private static $installed_time = null;
 
     public static function init() {
         // Obtener la fecha de instalación del plugin
-        self::$installed_time = get_option('dn325_webp_installed_time', time());
+        self::$installed_time = get_option('NABI_webp_installed_time', time());
         
         // Hook para convertir imágenes nuevas al subirlas
         add_filter('wp_handle_upload_prefilter', [__CLASS__, 'convert_uploaded_image'], 10, 1);
@@ -286,7 +286,7 @@ class DN325_WebP_Converter {
      * Obtiene todas las imágenes que pueden ser convertidas
      */
     public static function get_convertible_images($limit = -1, $offset = 0) {
-        require_once DN325_WEBP_PATH . 'includes/class-dn325-webp-settings.php';
+        require_once NABI_WEBP_PATH . 'includes/class-nabi-webp-settings.php';
         
         $args = [
             'post_type' => 'attachment',
@@ -298,7 +298,7 @@ class DN325_WebP_Converter {
         ];
 
         // Aplicar filtro de año/mes si está configurado
-        $filter_date = DN325_WebP_Settings::get_filter_date();
+        $filter_date = NABI_WebP_Settings::get_filter_date();
         if ($filter_date && (!empty($filter_date['year']) || !empty($filter_date['month']))) {
             $date_query = [];
             if (!empty($filter_date['year'])) {
@@ -346,7 +346,7 @@ class DN325_WebP_Converter {
         if (!$file_path || !file_exists($file_path)) {
             return [
                 'success' => false,
-                'message' => __('Archivo no encontrado', 'dn325-webp')
+                'message' => __('Archivo no encontrado', 'Nabi-webp')
             ];
         }
 
@@ -355,7 +355,7 @@ class DN325_WebP_Converter {
         if (!self::is_image($mime_type) || $mime_type === 'image/webp') {
             return [
                 'success' => false,
-                'message' => __('La imagen ya es WebP o no es una imagen válida', 'dn325-webp')
+                'message' => __('La imagen ya es WebP o no es una imagen válida', 'Nabi-webp')
             ];
         }
 
@@ -432,13 +432,13 @@ class DN325_WebP_Converter {
 
             return [
                 'success' => true,
-                'message' => __('Imagen convertida exitosamente', 'dn325-webp')
+                'message' => __('Imagen convertida exitosamente', 'Nabi-webp')
             ];
         }
 
         return [
             'success' => false,
-            'message' => __('Error al convertir la imagen', 'dn325-webp')
+            'message' => __('Error al convertir la imagen', 'Nabi-webp')
         ];
     }
 
@@ -516,3 +516,5 @@ class DN325_WebP_Converter {
         wp_cache_flush();
     }
 }
+
+

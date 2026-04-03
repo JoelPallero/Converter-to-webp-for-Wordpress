@@ -3,7 +3,7 @@
 
     $(document).ready(function() {
         // Manejo de pestañas
-        $('.dn325-webp-tabs .nav-tab').on('click', function(e) {
+        $('.Nabi-webp-tabs .nav-tab').on('click', function(e) {
             e.preventDefault();
             const target = $(this).attr('href');
             
@@ -15,18 +15,18 @@
         });
 
         // Formulario de configuración
-        $('#dn325-webp-settings-form').on('submit', function(e) {
+        $('#Nabi-webp-settings-form').on('submit', function(e) {
             e.preventDefault();
             
             const $form = $(this);
-            const $result = $('#dn325-webp-settings-result');
+            const $result = $('#Nabi-webp-settings-result');
             
             $.ajax({
-                url: dn325WebP.ajax_url,
+                url: NabiWebP.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'dn325_webp_save_settings',
-                    nonce: dn325WebP.nonce,
+                    action: 'NABI_webp_save_settings',
+                    nonce: NabiWebP.nonce,
                     filter_year: $('#filter_year').val(),
                     filter_month: $('#filter_month').val()
                 },
@@ -57,20 +57,20 @@
             });
         });
 
-        const $convertBtn = $('#dn325-webp-convert-btn');
-        const $convertSelectedBtn = $('#dn325-webp-convert-selected-btn');
-        const $scanBtn = $('#dn325-webp-scan-btn');
-        const $progress = $('#dn325-webp-progress');
-        const $progressFill = $progress.find('.dn325-webp-progress-fill');
-        const $progressText = $progress.find('.dn325-webp-progress-text');
-        const $progressDetails = $('#dn325-webp-progress-details');
-        const $result = $('#dn325-webp-result');
-        const $totalCount = $('#dn325-webp-total-count');
-        const $converted = $('#dn325-webp-converted');
-        const $total = $('#dn325-webp-total');
-        const $imagesList = $('#dn325-webp-images-list');
-        const $selectAll = $('#dn325-webp-select-all');
-        const $selectedCount = $('#dn325-webp-selected-count');
+        const $convertBtn = $('#Nabi-webp-convert-btn');
+        const $convertSelectedBtn = $('#Nabi-webp-convert-selected-btn');
+        const $scanBtn = $('#Nabi-webp-scan-btn');
+        const $progress = $('#Nabi-webp-progress');
+        const $progressFill = $progress.find('.Nabi-webp-progress-fill');
+        const $progressText = $progress.find('.Nabi-webp-progress-text');
+        const $progressDetails = $('#Nabi-webp-progress-details');
+        const $result = $('#Nabi-webp-result');
+        const $totalCount = $('#Nabi-webp-total-count');
+        const $converted = $('#Nabi-webp-converted');
+        const $total = $('#Nabi-webp-total');
+        const $imagesList = $('#Nabi-webp-images-list');
+        const $selectAll = $('#Nabi-webp-select-all');
+        const $selectedCount = $('#Nabi-webp-selected-count');
 
         let isConverting = false;
         let totalConverted = 0;
@@ -92,7 +92,7 @@
             
             if (isConverting) return;
 
-            if (!confirm(dn325WebP.strings.confirm_convert)) return;
+            if (!confirm(NabiWebP.strings.confirm_convert)) return;
 
             startConversion(false);
         });
@@ -114,11 +114,11 @@
         // Manejo de "Seleccionar Todas"
         $selectAll.on('change', function() {
             const isChecked = $(this).is(':checked');
-            $('.dn325-webp-image-checkbox').prop('checked', isChecked).trigger('change');
+            $('.Nabi-webp-image-checkbox').prop('checked', isChecked).trigger('change');
         });
 
         // Manejo de checkboxes individuales (delegado)
-        $imagesList.on('change', '.dn325-webp-image-checkbox', function() {
+        $imagesList.on('change', '.Nabi-webp-image-checkbox', function() {
             const id = parseInt($(this).val());
             const isChecked = $(this).is(':checked');
 
@@ -137,15 +137,15 @@
          */
         function loadImagesList() {
             $.ajax({
-                url: dn325WebP.ajax_url,
+                url: NabiWebP.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'dn325_webp_get_images_list',
-                    nonce: dn325WebP.nonce,
+                    action: 'NABI_webp_get_images_list',
+                    nonce: NabiWebP.nonce,
                     limit: -1
                 },
                 beforeSend: function() {
-                    $imagesList.html('<div class="dn325-webp-loading-images"><span class="spinner is-active"></span> ' + dn325WebP.strings.loading || 'Cargando imágenes...' + '</div>');
+                    $imagesList.html('<div class="Nabi-webp-loading-images"><span class="spinner is-active"></span> ' + NabiWebP.strings.loading || 'Cargando imágenes...' + '</div>');
                     $scanBtn.prop('disabled', true);
                     selectedIds = [];
                     updateSelectionUI();
@@ -156,22 +156,22 @@
                         $totalCount.text(images.length);
                         
                         if (images.length === 0) {
-                            $imagesList.html('<p>' + dn325WebP.strings.no_images + '</p>');
+                            $imagesList.html('<p>' + NabiWebP.strings.no_images + '</p>');
                             return;
                         }
 
-                        let html = '<div class="dn325-webp-grid">';
+                        let html = '<div class="Nabi-webp-grid">';
                         images.forEach(function(img) {
                             html += `
-                                <div class="dn325-webp-image-item" data-id="${img.id}">
+                                <div class="Nabi-webp-image-item" data-id="${img.id}">
                                     <label>
-                                        <input type="checkbox" class="dn325-webp-image-checkbox" value="${img.id}">
-                                        <div class="dn325-webp-image-preview">
+                                        <input type="checkbox" class="Nabi-webp-image-checkbox" value="${img.id}">
+                                        <div class="Nabi-webp-image-preview">
                                             ${img.thumbnail ? `<img src="${img.thumbnail}" alt="${img.title}">` : '<span class="dashicons dashicons-format-image"></span>'}
                                         </div>
-                                        <div class="dn325-webp-image-info">
-                                            <span class="dn325-webp-image-title">${img.title || 'ID: ' + img.id}</span>
-                                            <span class="dn325-webp-image-meta">${img.mime.split('/')[1].toUpperCase()} | ${img.date}</span>
+                                        <div class="Nabi-webp-image-info">
+                                            <span class="Nabi-webp-image-title">${img.title || 'ID: ' + img.id}</span>
+                                            <span class="Nabi-webp-image-meta">${img.mime.split('/')[1].toUpperCase()} | ${img.date}</span>
                                         </div>
                                     </label>
                                 </div>
@@ -218,7 +218,7 @@
 
             if (totalImages === 0) {
                 isConverting = false;
-                showResult('error', dn325WebP.strings.no_images);
+                showResult('error', NabiWebP.strings.no_images);
                 return;
             }
 
@@ -240,8 +240,8 @@
          */
         function convertBatch(offset, ids) {
             const data = {
-                action: 'dn325_webp_convert_all',
-                nonce: dn325WebP.nonce,
+                action: 'NABI_webp_convert_all',
+                nonce: NabiWebP.nonce,
                 batch_size: 20,
                 offset: offset,
                 skip_references: true
@@ -252,7 +252,7 @@
             }
 
             $.ajax({
-                url: dn325WebP.ajax_url,
+                url: NabiWebP.ajax_url,
                 type: 'POST',
                 timeout: 300000,
                 data: data,
@@ -266,7 +266,7 @@
                         $progressFill.css('width', percentage + '%');
                         $converted.text(totalConverted);
                         $progressText.text(
-                            data.message || dn325WebP.strings.converting
+                            data.message || NabiWebP.strings.converting
                         );
 
                         // Actualizar detalles
@@ -282,16 +282,16 @@
                         $progressDetails.scrollTop($progressDetails[0].scrollHeight);
 
                         if (data.completed) {
-                            finishConversion(true, dn325WebP.strings.success + '. Total: ' + totalConverted);
+                            finishConversion(true, NabiWebP.strings.success + '. Total: ' + totalConverted);
                         } else if (data.has_more) {
                             setTimeout(function() {
                                 convertBatch(data.offset, ids);
                             }, 300);
                         } else {
-                            finishConversion(true, dn325WebP.strings.success);
+                            finishConversion(true, NabiWebP.strings.success);
                         }
                     } else {
-                        finishConversion(false, response.data.message || dn325WebP.strings.error);
+                        finishConversion(false, response.data.message || NabiWebP.strings.error);
                     }
                 },
                 error: function() {
@@ -310,7 +310,7 @@
             
             if (success) {
                 $progressFill.css('width', '100%');
-                $progressText.text(dn325WebP.strings.success);
+                $progressText.text(NabiWebP.strings.success);
                 setTimeout(function() {
                     $progress.hide();
                     showResult('success', message);
@@ -332,3 +332,5 @@
         }
     });
 })(jQuery);
+
+

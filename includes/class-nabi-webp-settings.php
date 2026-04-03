@@ -4,15 +4,15 @@ defined('ABSPATH') || exit;
 /**
  * Clase para gestionar las configuraciones del plugin WebP Converter
  */
-class DN325_WebP_Settings {
+class NABI_WebP_Settings {
 
     /**
      * Obtiene todas las configuraciones
      */
     public static function get_settings() {
         return [
-            'filter_year' => get_option('dn325_webp_filter_year', ''),
-            'filter_month' => get_option('dn325_webp_filter_month', ''),
+            'filter_year' => get_option('NABI_webp_filter_year', ''),
+            'filter_month' => get_option('NABI_webp_filter_month', ''),
         ];
     }
 
@@ -20,8 +20,8 @@ class DN325_WebP_Settings {
      * Guarda las configuraciones
      */
     public static function save_settings($settings) {
-        update_option('dn325_webp_filter_year', isset($settings['filter_year']) ? sanitize_text_field($settings['filter_year']) : '');
-        update_option('dn325_webp_filter_month', isset($settings['filter_month']) ? sanitize_text_field($settings['filter_month']) : '');
+        update_option('NABI_webp_filter_year', isset($settings['filter_year']) ? sanitize_text_field($settings['filter_year']) : '');
+        update_option('NABI_webp_filter_month', isset($settings['filter_month']) ? sanitize_text_field($settings['filter_month']) : '');
         
         return true;
     }
@@ -44,3 +44,5 @@ class DN325_WebP_Settings {
         ];
     }
 }
+
+

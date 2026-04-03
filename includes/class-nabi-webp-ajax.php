@@ -1,28 +1,28 @@
 <?php
 defined('ABSPATH') || exit;
 
-class DN325_WebP_Ajax {
+class NABI_WebP_Ajax {
 
     public static function init() {
-        add_action('wp_ajax_dn325_webp_convert_all', [__CLASS__, 'convert_all_images']);
-        add_action('wp_ajax_dn325_webp_convert_single', [__CLASS__, 'convert_single_image']);
-        add_action('wp_ajax_dn325_webp_get_count', [__CLASS__, 'get_image_count']);
-        add_action('wp_ajax_dn325_webp_get_images_list', [__CLASS__, 'get_images_list']);
-        add_action('wp_ajax_dn325_webp_update_references', [__CLASS__, 'update_all_references']);
-        add_action('wp_ajax_dn325_webp_save_settings', [__CLASS__, 'handle_save_settings']);
+        add_action('wp_ajax_NABI_webp_convert_all', [__CLASS__, 'convert_all_images']);
+        add_action('wp_ajax_NABI_webp_convert_single', [__CLASS__, 'convert_single_image']);
+        add_action('wp_ajax_NABI_webp_get_count', [__CLASS__, 'get_image_count']);
+        add_action('wp_ajax_NABI_webp_get_images_list', [__CLASS__, 'get_images_list']);
+        add_action('wp_ajax_NABI_webp_update_references', [__CLASS__, 'update_all_references']);
+        add_action('wp_ajax_NABI_webp_save_settings', [__CLASS__, 'handle_save_settings']);
     }
 
     /**
      * Obtiene el conteo de imágenes convertibles
      */
     public static function get_image_count() {
-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+        check_ajax_referer('NABI_webp_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'dn325-webp')]);
+            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'Nabi-webp')]);
         }
 
-        $images = DN325_WebP_Converter::get_convertible_images();
+        $images = NABI_WebP_Converter::get_convertible_images();
         $count = count($images);
 
         wp_send_json_success([
@@ -34,16 +34,16 @@ class DN325_WebP_Ajax {
      * Obtiene la lista de imágenes con detalles
      */
     public static function get_images_list() {
-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+        check_ajax_referer('NABI_webp_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'dn325-webp')]);
+            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'Nabi-webp')]);
         }
 
         $limit = isset($_POST['limit']) ? intval($_POST['limit']) : -1;
         $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
 
-        $images = DN325_WebP_Converter::get_convertible_images_list($limit, $offset);
+        $images = NABI_WebP_Converter::get_convertible_images_list($limit, $offset);
 
         wp_send_json_success([
             'images' => $images
@@ -59,10 +59,10 @@ class DN325_WebP_Ajax {
         @ini_set('max_execution_time', 300);
         @ini_set('memory_limit', '512M');
         
-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+        check_ajax_referer('NABI_webp_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'dn325-webp')]);
+            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'Nabi-webp')]);
         }
 
         // Reducir batch size para evitar timeouts
@@ -76,17 +76,17 @@ class DN325_WebP_Ajax {
             $total_to_process = count($selected_ids);
         } else {
             // Si no hay IDs seleccionados, procesar todos según filtros
-            $images = DN325_WebP_Converter::get_convertible_images($batch_size, $offset);
+            $images = NABI_WebP_Converter::get_convertible_images($batch_size, $offset);
             
             // Obtener el total según filtros
-            $all_convertible = DN325_WebP_Converter::get_convertible_images();
+            $all_convertible = NABI_WebP_Converter::get_convertible_images();
             $total_to_process = count($all_convertible);
         }
         
         if (empty($images)) {
             wp_send_json_success([
                 'completed' => true,
-                'message' => __('Todas las imágenes han sido convertidas', 'dn325-webp'),
+                'message' => __('Todas las imágenes han sido convertidas', 'Nabi-webp'),
                 'converted' => 0,
                 'total' => 0
             ]);
@@ -120,7 +120,7 @@ class DN325_WebP_Ajax {
                     'has_more' => true,
                     'timeout' => true,
                     'message' => sprintf(
-                        __('Procesadas %d imágenes antes del timeout. Convertidas: %d, Errores: %d', 'dn325-webp'),
+                        __('Procesadas %d imágenes antes del timeout. Convertidas: %d, Errores: %d', 'Nabi-webp'),
                         $index,
                         $converted,
                         $errors
@@ -129,7 +129,7 @@ class DN325_WebP_Ajax {
                 return;
             }
             
-            $result = DN325_WebP_Converter::convert_image_by_id($attachment_id, $skip_references);
+            $result = NABI_WebP_Converter::convert_image_by_id($attachment_id, $skip_references);
             
             if ($result['success']) {
                 $converted++;
@@ -174,7 +174,7 @@ class DN325_WebP_Ajax {
             'has_more' => $has_more,
             'results' => $results,
             'message' => sprintf(
-                __('Procesadas %d imágenes. Convertidas: %d, Errores: %d', 'dn325-webp'),
+                __('Procesadas %d imágenes. Convertidas: %d, Errores: %d', 'Nabi-webp'),
                 count($images),
                 $converted,
                 $errors
@@ -186,19 +186,19 @@ class DN325_WebP_Ajax {
      * Convierte una imagen individual
      */
     public static function convert_single_image() {
-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+        check_ajax_referer('NABI_webp_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'dn325-webp')]);
+            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'Nabi-webp')]);
         }
 
         $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
 
         if (!$attachment_id) {
-            wp_send_json_error(['message' => __('ID de imagen no válido', 'dn325-webp')]);
+            wp_send_json_error(['message' => __('ID de imagen no válido', 'Nabi-webp')]);
         }
 
-        $result = DN325_WebP_Converter::convert_image_by_id($attachment_id);
+        $result = NABI_WebP_Converter::convert_image_by_id($attachment_id);
 
         if ($result['success']) {
             wp_send_json_success($result);
@@ -211,10 +211,10 @@ class DN325_WebP_Ajax {
      * Actualiza todas las referencias de imágenes convertidas en batch
      */
     public static function update_all_references() {
-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+        check_ajax_referer('NABI_webp_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'dn325-webp')]);
+            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'Nabi-webp')]);
         }
 
         // Obtener todas las imágenes WebP convertidas
@@ -283,7 +283,9 @@ class DN325_WebP_Ajax {
         wp_send_json_success([
             'updated' => $updated,
             'total' => count($webp_images),
-            'message' => sprintf(__('Actualizadas referencias para %d imágenes', 'dn325-webp'), $updated)
+            'message' => sprintf(__('Actualizadas referencias para %d imágenes', 'Nabi-webp'), $updated)
         ]);
     }
 }
+
+

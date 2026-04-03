@@ -1,10 +1,10 @@
-=== DN325 WebP Converter ===
+=== Nabi WebP Converter ===
 Contributors: Joel Pallero
 Tags: webp, images, conversion, performance, media
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Convierte automáticamente todas las imágenes subidas a formato WebP con 100% d
 
 == Description ==
 
-DN325 WebP Converter es una solución integral para optimizar el rendimiento de tu sitio WordPress mediante el uso del formato de imagen WebP. A diferencia de otros plugins, este se enfoca en la máxima calidad (100%) manteniendo el peso del archivo reducido.
+Nabi WebP Converter es una solución integral para optimizar el rendimiento de tu sitio WordPress mediante el uso del formato de imagen WebP. A diferencia de otros plugins, este se enfoca en la máxima calidad (100%) manteniendo el peso del archivo reducido.
 
 **Características principales:**
 * Conversión automática al subir nuevas imágenes.
@@ -42,5 +42,11 @@ WebP es soportado por la gran mayoría de navegadores modernos (Chrome, Firefox,
 
 == Changelog ==
 
+= 1.0.1 =
+* Corrección de errores fatales en la carga de dependencias de clases.
+* Desacople total del plugin para que funcione sin dependencias externas (Nabi Master).
+
 = 1.0.0 =
 * Versión inicial con soporte para conversión automática y selectiva manual.
+
+
