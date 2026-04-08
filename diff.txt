@@ -1,0 +1,2109 @@
+﻿diff --git a/admin/class-dn325-webp-admin.php b/admin/class-dn325-webp-admin.php
+deleted file mode 100644
+index de6c132..0000000
+--- a/admin/class-dn325-webp-admin.php
++++ /dev/null
+@@ -1,281 +0,0 @@
+-<?php
+-defined('ABSPATH') || exit;
+-
+-class DN325_WebP_Admin {
+-
+-    public static function init() {
+-        add_action('admin_menu', [__CLASS__, 'add_admin_menu']);
+-        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_assets']);
+-        
+-        // Guardar la fecha de instalaci├│n si no existe
+-        if (!get_option('dn325_webp_installed_time')) {
+-            update_option('dn325_webp_installed_time', time());
+-        }
+-    }
+-
+-    /**
+-     * Agrega el men├║ de administraci├│n
+-     */
+-    public static function add_admin_menu() {
+-        // Intentar usar DN325_Menu del plugin de backup si existe
+-        $menu_class = null;
+-        
+-        // Buscar DN325_Menu en varios lugares posibles
+-        $possible_paths = [
+-            'dn325-backup-for-wordpress/includes/class-dn325-menu.php',
+-            'DN325 Backup for WordPress/includes/class-dn325-menu.php',
+-            'dn325-master/includes/class-dn325-menu.php',
+-            'DN325 Master/includes/class-dn325-menu.php',
+-        ];
+-        
+-        foreach ($possible_paths as $relative_path) {
+-            $full_path = WP_PLUGIN_DIR . '/' . $relative_path;
+-            if (file_exists($full_path)) {
+-                require_once $full_path;
+-                if (class_exists('DN325_Menu')) {
+-                    $menu_class = 'DN325_Menu';
+-                    break;
+-                }
+-            }
+-        }
+-        
+-        // Si no encontramos DN325_Menu, usar el local DN325_Menu
+-        if (!$menu_class) {
+-            require_once DN325_WEBP_PATH . 'includes/class-dn325-menu.php';
+-            if (class_exists('DN325_Menu')) {
+-                $menu_class = 'DN325_Menu';
+-            }
+-        }
+-        
+-        $menu_class::add_submenu(
+-            __('DN325 WebP Converter', 'dn325-webp'),
+-            __('WebP Converter', 'dn325-webp'),
+-            'dn325-webp',
+-            [__CLASS__, 'render_admin_page']
+-        );
+-    }
+-
+-    /**
+-     * Carga los assets del admin
+-     */
+-    public static function enqueue_assets($hook) {
+-        // Verificar si estamos en la p├ígina del plugin
+-        $is_webp_page = false;
+-        
+-        // Verificar por hook
+-        if (strpos($hook, 'dn325-webp') !== false || strpos($hook, 'dn325-plugins') !== false) {
+-            $is_webp_page = true;
+-        }
+-        
+-        // Verificar por par├ímetro GET
+-        if (isset($_GET['page']) && $_GET['page'] === 'dn325-webp') {
+-            $is_webp_page = true;
+-        }
+-        
+-        if (!$is_webp_page) {
+-            return;
+-        }
+-
+-        wp_enqueue_script(
+-            'dn325-webp-admin',
+-            DN325_WEBP_URL . 'assets/js/admin.js',
+-            ['jquery'],
+-            DN325_WEBP_VERSION,
+-            true
+-        );
+-
+-        wp_enqueue_style(
+-            'dn325-webp-admin',
+-            DN325_WEBP_URL . 'assets/css/admin.css',
+-            [],
+-            DN325_WEBP_VERSION
+-        );
+-
+-        wp_localize_script('dn325-webp-admin', 'dn325WebP', [
+-            'ajax_url' => admin_url('admin-ajax.php'),
+-            'nonce' => wp_create_nonce('dn325_webp_nonce'),
+-            'strings' => [
+-                'converting' => __('Convirtiendo im├ígenes...', 'dn325-webp'),
+-                'success' => __('Conversi├│n completada exitosamente', 'dn325-webp'),
+-                'error' => __('Ocurri├│ un error durante la conversi├│n', 'dn325-webp'),
+-                'no_images' => __('No se encontraron im├ígenes para convertir', 'dn325-webp'),
+-                'confirm_convert' => __('┬┐Est├ís seguro de que deseas convertir todas las im├ígenes existentes? Este proceso puede tardar varios minutos.', 'dn325-webp')
+-            ]
+-        ]);
+-    }
+-
+-    /**
+-     * Renderiza la p├ígina de administraci├│n
+-     */
+-    public static function render_admin_page() {
+-        $total_images = DN325_WebP_Converter::get_convertible_images(-1, 0);
+-        $total_count = count($total_images);
+-        $installed_time = get_option('dn325_webp_installed_time', time());
+-        $installed_date = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $installed_time);
+-        ?>
+-        <div class="wrap dn325-webp-wrap">
+-            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
+-            
+-            <div class="dn325-webp-tabs">
+-                <nav class="nav-tab-wrapper">
+-                    <a href="#converter" class="nav-tab nav-tab-active"><?php _e('Convertir', 'dn325-webp'); ?></a>
+-                    <a href="#settings" class="nav-tab"><?php _e('Configuraci├│n', 'dn325-webp'); ?></a>
+-                </nav>
+-
+-                <div class="dn325-webp-tab-content">
+-                    <div id="converter-tab" class="tab-pane active">
+-                        <div class="dn325-webp-info">
+-                <div class="dn325-webp-card">
+-                    <h2><?php _e('Conversi├│n Autom├ítica', 'dn325-webp'); ?></h2>
+-                    <p><?php _e('Todas las im├ígenes nuevas que subas (ya sea manualmente o por API) se convertir├ín autom├íticamente a formato WebP con 100% de calidad.', 'dn325-webp'); ?></p>
+-                    <p class="dn325-webp-installed">
+-                        <strong><?php _e('Plugin instalado el:', 'dn325-webp'); ?></strong> 
+-                        <?php echo esc_html($installed_date); ?>
+-                    </p>
+-                    <p class="dn325-webp-note">
+-                        <em><?php _e('Nota: Las im├ígenes subidas antes de esta fecha no se convertir├ín autom├íticamente para evitar conflictos con im├ígenes que puedan estar en uso.', 'dn325-webp'); ?></em>
+-                    </p>
+-                </div>
+-
+-                <div class="dn325-webp-card">
+-                    <h2><?php _e('Conversi├│n Manual', 'dn325-webp'); ?></h2>
+-                    <p><?php _e('Puedes convertir manualmente im├ígenes existentes que fueron subidas antes de la instalaci├│n del plugin.', 'dn325-webp'); ?></p>
+-                    
+-                    <div class="dn325-webp-stats">
+-                        <p>
+-                            <strong><?php _e('Im├ígenes disponibles para conversi├│n:', 'dn325-webp'); ?></strong>
+-                            <span id="dn325-webp-total-count"><?php echo esc_html($total_count); ?></span>
+-                        </p>
+-                    </div>
+-
+-                    <div class="dn325-webp-selection-header">
+-                        <label>
+-                            <input type="checkbox" id="dn325-webp-select-all">
+-                            <strong><?php _e('Seleccionar Todas', 'dn325-webp'); ?></strong>
+-                        </label>
+-                        <span id="dn325-webp-selected-count">0 <?php _e('seleccionadas', 'dn325-webp'); ?></span>
+-                    </div>
+-
+-                    <div id="dn325-webp-images-list" class="dn325-webp-images-list">
+-                        <!-- La lista se cargar├í v├¡a AJAX -->
+-                        <div class="dn325-webp-loading-images">
+-                            <span class="spinner is-active"></span> <?php _e('Cargando im├ígenes...', 'dn325-webp'); ?>
+-                        </div>
+-                    </div>
+-
+-                    <div class="dn325-webp-actions">
+-                        <button type="button" id="dn325-webp-convert-btn" class="button button-primary button-large">
+-                            <?php _e('Convertir Todas las Im├ígenes', 'dn325-webp'); ?>
+-                        </button>
+-                        <button type="button" id="dn325-webp-convert-selected-btn" class="button button-primary button-large" disabled style="display: none;">
+-                            <?php _e('Convertir Seleccionadas', 'dn325-webp'); ?>
+-                        </button>
+-                        <button type="button" id="dn325-webp-scan-btn" class="button button-secondary button-large">
+-                            <?php _e('Actualizar Lista', 'dn325-webp'); ?>
+-                        </button>
+-                    </div>
+-
+-                    <div id="dn325-webp-progress" class="dn325-webp-progress" style="display: none;">
+-                        <div class="dn325-webp-progress-bar">
+-                            <div class="dn325-webp-progress-fill"></div>
+-                        </div>
+-                        <div id="dn325-webp-progress-details" class="dn325-webp-progress-details"></div>
+-                        <p class="dn325-webp-progress-text"></p>
+-                        <div class="dn325-webp-progress-stats">
+-                            <strong><?php _e('Progreso:', 'dn325-webp'); ?></strong>
+-                            <span id="dn325-webp-converted">0</span> / 
+-                            <span id="dn325-webp-total">0</span> 
+-                            <?php _e('im├ígenes procesadas', 'dn325-webp'); ?>
+-                        </div>
+-                    </div>
+-
+-                    <div id="dn325-webp-result" class="dn325-webp-result"></div>
+-                </div>
+-            </div>
+-                    </div>
+-
+-                    <div id="settings-tab" class="tab-pane">
+-                        <?php
+-                        require_once DN325_WEBP_PATH . 'includes/class-dn325-webp-settings.php';
+-                        $settings = DN325_WebP_Settings::get_settings();
+-                        
+-                        // Obtener a├▒os y meses disponibles
+-                        $current_year = date('Y');
+-                        $years = range($current_year, 2010); // Desde 2010 hasta el a├▒o actual
+-                        $months = range(1, 12);
+-                        ?>
+-                        <div class="dn325-webp-card">
+-                            <h2><?php _e('Configuraci├│n de Conversi├│n', 'dn325-webp'); ?></h2>
+-                            <p><?php _e('Selecciona el a├▒o y mes para filtrar las im├ígenes a convertir. WordPress organiza las im├ígenes por a├▒o y mes.', 'dn325-webp'); ?></p>
+-                            
+-                            <form id="dn325-webp-settings-form">
+-                                <table class="form-table">
+-                                    <tbody>
+-                                        <tr>
+-                                            <th scope="row">
+-                                                <label for="filter_year"><?php _e('A├▒o', 'dn325-webp'); ?></label>
+-                                            </th>
+-                                            <td>
+-                                                <select name="filter_year" id="filter_year">
+-                                                    <option value=""><?php _e('Todos los a├▒os', 'dn325-webp'); ?></option>
+-                                                    <?php foreach ($years as $year): ?>
+-                                                        <option value="<?php echo esc_attr($year); ?>" <?php selected($settings['filter_year'], $year); ?>>
+-                                                            <?php echo esc_html($year); ?>
+-                                                        </option>
+-                                                    <?php endforeach; ?>
+-                                                </select>
+-                                            </td>
+-                                        </tr>
+-                                        <tr>
+-                                            <th scope="row">
+-                                                <label for="filter_month"><?php _e('Mes', 'dn325-webp'); ?></label>
+-                                            </th>
+-                                            <td>
+-                                                <select name="filter_month" id="filter_month">
+-                                                    <option value=""><?php _e('Todos los meses', 'dn325-webp'); ?></option>
+-                                                    <?php 
+-                                                    $month_names = [
+-                                                        1 => __('Enero', 'dn325-webp'),
+-                                                        2 => __('Febrero', 'dn325-webp'),
+-                                                        3 => __('Marzo', 'dn325-webp'),
+-                                                        4 => __('Abril', 'dn325-webp'),
+-                                                        5 => __('Mayo', 'dn325-webp'),
+-                                                        6 => __('Junio', 'dn325-webp'),
+-                                                        7 => __('Julio', 'dn325-webp'),
+-                                                        8 => __('Agosto', 'dn325-webp'),
+-                                                        9 => __('Septiembre', 'dn325-webp'),
+-                                                        10 => __('Octubre', 'dn325-webp'),
+-                                                        11 => __('Noviembre', 'dn325-webp'),
+-                                                        12 => __('Diciembre', 'dn325-webp'),
+-                                                    ];
+-                                                    foreach ($months as $month): 
+-                                                    ?>
+-                                                        <option value="<?php echo esc_attr($month); ?>" <?php selected($settings['filter_month'], $month); ?>>
+-                                                            <?php echo esc_html($month_names[$month]); ?>
+-                                                        </option>
+-                                                    <?php endforeach; ?>
+-                                                </select>
+-                                                <p class="description">
+-                                                    <?php _e('Nota: Si seleccionas un a├▒o y mes, solo se convertir├ín las im├ígenes de ese per├¡odo espec├¡fico.', 'dn325-webp'); ?>
+-                                                </p>
+-                                            </td>
+-                                        </tr>
+-                                    </tbody>
+-                                </table>
+-                                
+-                                <p class="submit">
+-                                    <button type="submit" class="button button-primary">
+-                                        <?php _e('Guardar Configuraci├│n', 'dn325-webp'); ?>
+-                                    </button>
+-                                </p>
+-                            </form>
+-                            
+-                            <div id="dn325-webp-settings-result" class="dn325-webp-result" style="display: none;"></div>
+-                        </div>
+-                    </div>
+-                </div>
+-            </div>
+-        </div>
+-        <?php
+-    }
+-}
+diff --git a/assets/css/admin.css b/assets/css/admin.css
+index c57eeda..3d059a6 100644
+--- a/assets/css/admin.css
++++ b/assets/css/admin.css
+@@ -1,25 +1,25 @@
+ /* Asegurar que el contenedor use todo el ancho disponible */
+-body.toplevel_page_dn325-plugins .dn325-webp-wrap,
+-body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
++body.toplevel_page_Nabi-plugins .Nabi-webp-wrap,
++body.Nabi-plugins_page_Nabi-webp .Nabi-webp-wrap {
+     max-width: 100% !important;
+     margin: 20px 0 !important;
+     padding: 0 !important;
+ }
+ 
+-.dn325-webp-wrap {
++.Nabi-webp-wrap {
+     max-width: 100%;
+     margin: 20px 0;
+     padding: 0;
+ }
+ 
+-.dn325-webp-info {
++.Nabi-webp-info {
+     display: grid;
+     grid-template-columns: 1fr;
+     gap: 20px;
+     margin-top: 20px;
+ }
+ 
+-.dn325-webp-card {
++.Nabi-webp-card {
+     background: #fff;
+     border: 1px solid #ccd0d4;
+     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+@@ -27,58 +27,58 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     border-radius: 4px;
+ }
+ 
+-.dn325-webp-card h2 {
++.Nabi-webp-card h2 {
+     margin-top: 0;
+     padding-bottom: 10px;
+     border-bottom: 1px solid #eee;
+ }
+ 
+-.dn325-webp-card p {
++.Nabi-webp-card p {
+     color: #646970;
+     margin-bottom: 20px;
+ }
+ 
+-.dn325-webp-installed {
++.Nabi-webp-installed {
+     background: #f0f6fc;
+     padding: 10px;
+     border-left: 4px solid #2271b1;
+     margin: 15px 0;
+ }
+ 
+-.dn325-webp-note {
++.Nabi-webp-note {
+     color: #646970;
+     font-size: 13px;
+     margin-top: 15px;
+ }
+ 
+-.dn325-webp-stats {
++.Nabi-webp-stats {
+     background: #f6f7f7;
+     padding: 15px;
+     border-radius: 4px;
+     margin: 15px 0;
+ }
+ 
+-.dn325-webp-stats p {
++.Nabi-webp-stats p {
+     margin: 0;
+     font-size: 16px;
+ }
+ 
+-.dn325-webp-stats strong {
++.Nabi-webp-stats strong {
+     color: #1d2327;
+ }
+ 
+-.dn325-webp-stats span {
++.Nabi-webp-stats span {
+     color: #2271b1;
+     font-weight: bold;
+     font-size: 20px;
+     margin-left: 10px;
+ }
+ 
+-.dn325-webp-actions {
++.Nabi-webp-actions {
+     margin: 30px 0;
+ }
+ 
+-.dn325-webp-actions .button {
++.Nabi-webp-actions .button {
+     margin-right: 10px;
+     font-size: 14px;
+     height: auto;
+@@ -86,21 +86,21 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     line-height: 1.5;
+ }
+ 
+-.dn325-webp-actions .button.button-large {
++.Nabi-webp-actions .button.button-large {
+     font-size: 16px;
+     padding: 12px 24px;
+     line-height: 1.5;
+ }
+ 
+ /* Progress Bar */
+-.dn325-webp-progress {
++.Nabi-webp-progress {
+     margin: 30px 0;
+     padding: 20px;
+     background: #f6f7f7;
+     border-radius: 4px;
+ }
+ 
+-.dn325-webp-progress-bar {
++.Nabi-webp-progress-bar {
+     width: 100%;
+     height: 30px;
+     background: #f0f0f1;
+@@ -109,7 +109,7 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     margin-bottom: 10px;
+ }
+ 
+-.dn325-webp-progress-fill {
++.Nabi-webp-progress-fill {
+     height: 100%;
+     background: linear-gradient(90deg, #2271b1, #135e96);
+     width: 0%;
+@@ -126,14 +126,14 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     }
+ }
+ 
+-.dn325-webp-progress-text {
++.Nabi-webp-progress-text {
+     text-align: center;
+     color: #646970;
+     font-weight: 500;
+     margin: 10px 0;
+ }
+ 
+-.dn325-webp-progress-stats {
++.Nabi-webp-progress-stats {
+     text-align: center;
+     margin-top: 15px;
+     padding: 10px;
+@@ -143,7 +143,7 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     color: #646970;
+ }
+ 
+-.dn325-webp-progress-details {
++.Nabi-webp-progress-details {
+     margin-top: 15px;
+     padding: 10px;
+     background: #fff;
+@@ -155,17 +155,17 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     line-height: 1.6;
+ }
+ 
+-.dn325-webp-progress-details .progress-item {
++.Nabi-webp-progress-details .progress-item {
+     padding: 5px 0;
+     border-bottom: 1px solid #e0e0e0;
+ }
+ 
+-.dn325-webp-progress-details .progress-item:last-child {
++.Nabi-webp-progress-details .progress-item:last-child {
+     border-bottom: none;
+ }
+ 
+ /* Result Messages */
+-.dn325-webp-result {
++.Nabi-webp-result {
+     margin-top: 20px;
+     padding: 15px;
+     border-radius: 4px;
+@@ -173,57 +173,57 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     line-height: 1.6;
+ }
+ 
+-.dn325-webp-result.success {
++.Nabi-webp-result.success {
+     display: block;
+     background: #d1e7dd;
+     border: 1px solid #badbcc;
+     color: #0f5132;
+ }
+ 
+-.dn325-webp-result.error {
++.Nabi-webp-result.error {
+     display: block;
+     background: #f8d7da;
+     border: 1px solid #f5c2c7;
+     color: #842029;
+ }
+ 
+-.dn325-webp-result.error strong {
++.Nabi-webp-result.error strong {
+     font-weight: 600;
+     display: block;
+     margin-bottom: 5px;
+ }
+ 
+-.dn325-webp-result.info {
++.Nabi-webp-result.info {
+     display: block;
+     background: #cfe2ff;
+     border: 1px solid #b6d4fe;
+     color: #084298;
+ }
+ 
+-.dn325-webp-result .dashicons {
++.Nabi-webp-result .dashicons {
+     vertical-align: middle;
+     margin-right: 8px;
+ }
+ 
+ /* Tabs */
+-.dn325-webp-tabs {
++.Nabi-webp-tabs {
+     margin-top: 20px;
+ }
+ 
+-.dn325-webp-tab-content {
++.Nabi-webp-tab-content {
+     margin-top: 20px;
+ }
+ 
+-.dn325-webp-tab-content .tab-pane {
++.Nabi-webp-tab-content .tab-pane {
+     display: none;
+ }
+ 
+-.dn325-webp-tab-content .tab-pane.active {
++.Nabi-webp-tab-content .tab-pane.active {
+     display: block;
+ }
+ 
+ /* Image List and Grid */
+-.dn325-webp-selection-header {
++.Nabi-webp-selection-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+@@ -235,7 +235,7 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     margin-top: 20px;
+ }
+ 
+-.dn325-webp-images-list {
++.Nabi-webp-images-list {
+     border: 1px solid #ccd0d4;
+     border-radius: 0 0 4px 4px;
+     padding: 15px;
+@@ -244,13 +244,13 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     background: #fff;
+ }
+ 
+-.dn325-webp-grid {
++.Nabi-webp-grid {
+     display: grid;
+     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+     gap: 15px;
+ }
+ 
+-.dn325-webp-image-item {
++.Nabi-webp-image-item {
+     position: relative;
+     border: 1px solid #eee;
+     border-radius: 4px;
+@@ -258,18 +258,18 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     transition: all 0.2s ease;
+ }
+ 
+-.dn325-webp-image-item:hover {
++.Nabi-webp-image-item:hover {
+     border-color: #2271b1;
+     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+ }
+ 
+-.dn325-webp-image-item label {
++.Nabi-webp-image-item label {
+     display: block;
+     cursor: pointer;
+     padding: 5px;
+ }
+ 
+-.dn325-webp-image-checkbox {
++.Nabi-webp-image-checkbox {
+     position: absolute;
+     top: 5px;
+     left: 5px;
+@@ -277,7 +277,7 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     margin: 0 !important;
+ }
+ 
+-.dn325-webp-image-preview {
++.Nabi-webp-image-preview {
+     width: 100%;
+     aspect-ratio: 1;
+     display: flex;
+@@ -287,25 +287,25 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     margin-bottom: 5px;
+ }
+ 
+-.dn325-webp-image-preview img {
++.Nabi-webp-image-preview img {
+     max-width: 100%;
+     max-height: 100%;
+     object-fit: cover;
+ }
+ 
+-.dn325-webp-image-preview .dashicons {
++.Nabi-webp-image-preview .dashicons {
+     font-size: 40px;
+     width: 40px;
+     height: 40px;
+     color: #ccd0d4;
+ }
+ 
+-.dn325-webp-image-info {
++.Nabi-webp-image-info {
+     font-size: 11px;
+     padding: 2px 5px;
+ }
+ 
+-.dn325-webp-image-title {
++.Nabi-webp-image-title {
+     display: block;
+     font-weight: 600;
+     white-space: nowrap;
+@@ -314,12 +314,12 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+     margin-bottom: 2px;
+ }
+ 
+-.dn325-webp-image-meta {
++.Nabi-webp-image-meta {
+     display: block;
+     color: #646970;
+ }
+ 
+-.dn325-webp-loading-images {
++.Nabi-webp-loading-images {
+     padding: 40px;
+     text-align: center;
+     color: #646970;
+@@ -331,26 +331,28 @@ body.dn325-plugins_page_dn325-webp .dn325-webp-wrap {
+ 
+ /* Responsive */
+ @media (max-width: 782px) {
+-    .dn325-webp-wrap {
++    .Nabi-webp-wrap {
+         margin: 10px;
+     }
+ 
+-    .dn325-webp-card {
++    .Nabi-webp-card {
+         padding: 15px;
+     }
+ 
+-    .dn325-webp-actions {
++    .Nabi-webp-actions {
+         display: flex;
+         flex-direction: column;
+         gap: 10px;
+     }
+ 
+-    .dn325-webp-actions .button {
++    .Nabi-webp-actions .button {
+         width: 100%;
+         margin-right: 0;
+     }
+     
+-    .dn325-webp-grid {
++    .Nabi-webp-grid {
+         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+     }
+ }
++
++
+diff --git a/assets/js/admin.js b/assets/js/admin.js
+index 440f5f9..a0d171a 100644
+--- a/assets/js/admin.js
++++ b/assets/js/admin.js
+@@ -3,7 +3,7 @@
+ 
+     $(document).ready(function() {
+         // Manejo de pesta├▒as
+-        $('.dn325-webp-tabs .nav-tab').on('click', function(e) {
++        $('.Nabi-webp-tabs .nav-tab').on('click', function(e) {
+             e.preventDefault();
+             const target = $(this).attr('href');
+             
+@@ -15,18 +15,18 @@
+         });
+ 
+         // Formulario de configuraci├│n
+-        $('#dn325-webp-settings-form').on('submit', function(e) {
++        $('#Nabi-webp-settings-form').on('submit', function(e) {
+             e.preventDefault();
+             
+             const $form = $(this);
+-            const $result = $('#dn325-webp-settings-result');
++            const $result = $('#Nabi-webp-settings-result');
+             
+             $.ajax({
+-                url: dn325WebP.ajax_url,
++                url: NabiWebP.ajax_url,
+                 type: 'POST',
+                 data: {
+-                    action: 'dn325_webp_save_settings',
+-                    nonce: dn325WebP.nonce,
++                    action: 'NABI_webp_save_settings',
++                    nonce: NabiWebP.nonce,
+                     filter_year: $('#filter_year').val(),
+                     filter_month: $('#filter_month').val()
+                 },
+@@ -57,20 +57,20 @@
+             });
+         });
+ 
+-        const $convertBtn = $('#dn325-webp-convert-btn');
+-        const $convertSelectedBtn = $('#dn325-webp-convert-selected-btn');
+-        const $scanBtn = $('#dn325-webp-scan-btn');
+-        const $progress = $('#dn325-webp-progress');
+-        const $progressFill = $progress.find('.dn325-webp-progress-fill');
+-        const $progressText = $progress.find('.dn325-webp-progress-text');
+-        const $progressDetails = $('#dn325-webp-progress-details');
+-        const $result = $('#dn325-webp-result');
+-        const $totalCount = $('#dn325-webp-total-count');
+-        const $converted = $('#dn325-webp-converted');
+-        const $total = $('#dn325-webp-total');
+-        const $imagesList = $('#dn325-webp-images-list');
+-        const $selectAll = $('#dn325-webp-select-all');
+-        const $selectedCount = $('#dn325-webp-selected-count');
++        const $convertBtn = $('#Nabi-webp-convert-btn');
++        const $convertSelectedBtn = $('#Nabi-webp-convert-selected-btn');
++        const $scanBtn = $('#Nabi-webp-scan-btn');
++        const $progress = $('#Nabi-webp-progress');
++        const $progressFill = $progress.find('.Nabi-webp-progress-fill');
++        const $progressText = $progress.find('.Nabi-webp-progress-text');
++        const $progressDetails = $('#Nabi-webp-progress-details');
++        const $result = $('#Nabi-webp-result');
++        const $totalCount = $('#Nabi-webp-total-count');
++        const $converted = $('#Nabi-webp-converted');
++        const $total = $('#Nabi-webp-total');
++        const $imagesList = $('#Nabi-webp-images-list');
++        const $selectAll = $('#Nabi-webp-select-all');
++        const $selectedCount = $('#Nabi-webp-selected-count');
+ 
+         let isConverting = false;
+         let totalConverted = 0;
+@@ -92,7 +92,7 @@
+             
+             if (isConverting) return;
+ 
+-            if (!confirm(dn325WebP.strings.confirm_convert)) return;
++            if (!confirm(NabiWebP.strings.confirm_convert)) return;
+ 
+             startConversion(false);
+         });
+@@ -114,11 +114,11 @@
+         // Manejo de "Seleccionar Todas"
+         $selectAll.on('change', function() {
+             const isChecked = $(this).is(':checked');
+-            $('.dn325-webp-image-checkbox').prop('checked', isChecked).trigger('change');
++            $('.Nabi-webp-image-checkbox').prop('checked', isChecked).trigger('change');
+         });
+ 
+         // Manejo de checkboxes individuales (delegado)
+-        $imagesList.on('change', '.dn325-webp-image-checkbox', function() {
++        $imagesList.on('change', '.Nabi-webp-image-checkbox', function() {
+             const id = parseInt($(this).val());
+             const isChecked = $(this).is(':checked');
+ 
+@@ -137,15 +137,15 @@
+          */
+         function loadImagesList() {
+             $.ajax({
+-                url: dn325WebP.ajax_url,
++                url: NabiWebP.ajax_url,
+                 type: 'POST',
+                 data: {
+-                    action: 'dn325_webp_get_images_list',
+-                    nonce: dn325WebP.nonce,
++                    action: 'NABI_webp_get_images_list',
++                    nonce: NabiWebP.nonce,
+                     limit: -1
+                 },
+                 beforeSend: function() {
+-                    $imagesList.html('<div class="dn325-webp-loading-images"><span class="spinner is-active"></span> ' + dn325WebP.strings.loading || 'Cargando im├ígenes...' + '</div>');
++                    $imagesList.html('<div class="Nabi-webp-loading-images"><span class="spinner is-active"></span> ' + NabiWebP.strings.loading || 'Cargando im├ígenes...' + '</div>');
+                     $scanBtn.prop('disabled', true);
+                     selectedIds = [];
+                     updateSelectionUI();
+@@ -156,22 +156,22 @@
+                         $totalCount.text(images.length);
+                         
+                         if (images.length === 0) {
+-                            $imagesList.html('<p>' + dn325WebP.strings.no_images + '</p>');
++                            $imagesList.html('<p>' + NabiWebP.strings.no_images + '</p>');
+                             return;
+                         }
+ 
+-                        let html = '<div class="dn325-webp-grid">';
++                        let html = '<div class="Nabi-webp-grid">';
+                         images.forEach(function(img) {
+                             html += `
+-                                <div class="dn325-webp-image-item" data-id="${img.id}">
++                                <div class="Nabi-webp-image-item" data-id="${img.id}">
+                                     <label>
+-                                        <input type="checkbox" class="dn325-webp-image-checkbox" value="${img.id}">
+-                                        <div class="dn325-webp-image-preview">
++                                        <input type="checkbox" class="Nabi-webp-image-checkbox" value="${img.id}">
++                                        <div class="Nabi-webp-image-preview">
+                                             ${img.thumbnail ? `<img src="${img.thumbnail}" alt="${img.title}">` : '<span class="dashicons dashicons-format-image"></span>'}
+                                         </div>
+-                                        <div class="dn325-webp-image-info">
+-                                            <span class="dn325-webp-image-title">${img.title || 'ID: ' + img.id}</span>
+-                                            <span class="dn325-webp-image-meta">${img.mime.split('/')[1].toUpperCase()} | ${img.date}</span>
++                                        <div class="Nabi-webp-image-info">
++                                            <span class="Nabi-webp-image-title">${img.title || 'ID: ' + img.id}</span>
++                                            <span class="Nabi-webp-image-meta">${img.mime.split('/')[1].toUpperCase()} | ${img.date}</span>
+                                         </div>
+                                     </label>
+                                 </div>
+@@ -218,7 +218,7 @@
+ 
+             if (totalImages === 0) {
+                 isConverting = false;
+-                showResult('error', dn325WebP.strings.no_images);
++                showResult('error', NabiWebP.strings.no_images);
+                 return;
+             }
+ 
+@@ -240,8 +240,8 @@
+          */
+         function convertBatch(offset, ids) {
+             const data = {
+-                action: 'dn325_webp_convert_all',
+-                nonce: dn325WebP.nonce,
++                action: 'NABI_webp_convert_all',
++                nonce: NabiWebP.nonce,
+                 batch_size: 20,
+                 offset: offset,
+                 skip_references: true
+@@ -252,7 +252,7 @@
+             }
+ 
+             $.ajax({
+-                url: dn325WebP.ajax_url,
++                url: NabiWebP.ajax_url,
+                 type: 'POST',
+                 timeout: 300000,
+                 data: data,
+@@ -266,7 +266,7 @@
+                         $progressFill.css('width', percentage + '%');
+                         $converted.text(totalConverted);
+                         $progressText.text(
+-                            data.message || dn325WebP.strings.converting
++                            data.message || NabiWebP.strings.converting
+                         );
+ 
+                         // Actualizar detalles
+@@ -282,16 +282,16 @@
+                         $progressDetails.scrollTop($progressDetails[0].scrollHeight);
+ 
+                         if (data.completed) {
+-                            finishConversion(true, dn325WebP.strings.success + '. Total: ' + totalConverted);
++                            finishConversion(true, NabiWebP.strings.success + '. Total: ' + totalConverted);
+                         } else if (data.has_more) {
+                             setTimeout(function() {
+                                 convertBatch(data.offset, ids);
+                             }, 300);
+                         } else {
+-                            finishConversion(true, dn325WebP.strings.success);
++                            finishConversion(true, NabiWebP.strings.success);
+                         }
+                     } else {
+-                        finishConversion(false, response.data.message || dn325WebP.strings.error);
++                        finishConversion(false, response.data.message || NabiWebP.strings.error);
+                     }
+                 },
+                 error: function() {
+@@ -310,7 +310,7 @@
+             
+             if (success) {
+                 $progressFill.css('width', '100%');
+-                $progressText.text(dn325WebP.strings.success);
++                $progressText.text(NabiWebP.strings.success);
+                 setTimeout(function() {
+                     $progress.hide();
+                     showResult('success', message);
+@@ -332,3 +332,5 @@
+         }
+     });
+ })(jQuery);
++
++
+diff --git a/dn325-webp-converter.php b/dn325-webp-converter.php
+deleted file mode 100644
+index 09b6cf8..0000000
+--- a/dn325-webp-converter.php
++++ /dev/null
+@@ -1,37 +0,0 @@
+-<?php
+-/**
+- * Plugin Name: DN325 WebP Converter
+- * Description: Convierte autom├íticamente todas las im├ígenes subidas a formato WebP con 100% de calidad. Incluye opci├│n para convertir im├ígenes existentes por lotes o selecci├│n individual.
+- * Version: 1.0.0
+- * Author: Joel Pallero
+- * Author URI: https://joelpallero.com.ar
+- * Plugin URI: https://joelpallero.com.ar/productos
+- * Text Domain: dn325-webp
+- * Requires at least: 6.0
+- * Requires PHP: 7.4
+- * License: GPLv2 or later
+- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+- * Plugin Icon: assets/icons/icon.svg
+- */
+-
+-defined('ABSPATH') || exit;
+-
+-// Definiciones globales
+-define('DN325_WEBP_VERSION', '1.0.0');
+-define('DN325_WEBP_PATH', plugin_dir_path(__FILE__));
+-define('DN325_WEBP_URL', plugin_dir_url(__FILE__));
+-
+-// Autocarga de clases
+-require_once DN325_WEBP_PATH . 'includes/class-dn325-webp-loader.php';
+-require_once DN325_WEBP_PATH . 'includes/class-dn325-webp-converter.php';
+-require_once DN325_WEBP_PATH . 'includes/class-dn325-webp-ajax.php';
+-require_once DN325_WEBP_PATH . 'admin/class-dn325-webp-admin.php';
+-
+-// Hooks de inicializaci├│n
+-add_action('plugins_loaded', ['DN325_WebP_Loader', 'init']);
+-
+-// Cargar textdomain
+-add_action('plugins_loaded', 'dn325_webp_load_textdomain');
+-function dn325_webp_load_textdomain() {
+-    load_plugin_textdomain('dn325-webp', false, dirname(plugin_basename(__FILE__)) . '/languages');
+-}
+diff --git a/includes/class-dn325-menu.php b/includes/class-dn325-menu.php
+deleted file mode 100644
+index bb480df..0000000
+--- a/includes/class-dn325-menu.php
++++ /dev/null
+@@ -1,171 +0,0 @@
+-<?php
+-defined('ABSPATH') || exit;
+-
+-/**
+- * Clase compartida para crear el men├║ principal de DN325
+- * Esta clase asegura que solo se cree un men├║ principal compartido
+- */
+-if (!class_exists('DN325_Menu')) {
+-class DN325_Menu {
+-
+-    private static $menu_created = false;
+-    private static $menu_slug = 'dn325-plugins';
+-    private static $menu_hook = null;
+-
+-    /**
+-     * Crea el men├║ principal si no existe
+-     */
+-    public static function create_main_menu() {
+-        if (self::$menu_created) {
+-            return self::$menu_hook;
+-        }
+-
+-        // Usar dashicon nativo de WordPress
+-        $menu_icon = 'dashicons-admin-plugins';
+-        
+-        self::$menu_hook = add_menu_page(
+-            __('DN325 Plugins', 'dn325'),
+-            __('DN325', 'dn325'),
+-            'manage_options',
+-            self::$menu_slug,
+-            [__CLASS__, 'render_main_page'],
+-            $menu_icon,
+-            30
+-        );
+-
+-        self::$menu_created = true;
+-        return self::$menu_hook;
+-    }
+-
+-    /**
+-     * Agrega un submen├║ al men├║ principal
+-     */
+-    public static function add_submenu($page_title, $menu_title, $menu_slug, $callback) {
+-        // Asegurar que el men├║ principal existe
+-        self::create_main_menu();
+-
+-        return add_submenu_page(
+-            self::$menu_slug,
+-            $page_title,
+-            $menu_title,
+-            'manage_options',
+-            $menu_slug,
+-            $callback
+-        );
+-    }
+-
+-    /**
+-     * Renderiza la p├ígina principal del men├║
+-     */
+-    public static function render_main_page() {
+-        // Obtener todos los plugins instalados de DN325
+-        $dn325_plugins = self::get_installed_dn325_plugins();
+-        ?>
+-        <div class="wrap">
+-            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
+-            <p><?php _e('Bienvenido a los plugins de DN325. Selecciona una opci├│n del men├║ lateral para acceder a cada plugin.', 'dn325'); ?></p>
+-            
+-            <?php if (!empty($dn325_plugins)) : ?>
+-                <div class="dn325-plugins-list" style="margin-top: 30px;">
+-                    <h2><?php _e('Plugins de DN325 Instalados', 'dn325'); ?></h2>
+-                    <div class="dn325-plugins-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+-                        <?php foreach ($dn325_plugins as $plugin) : ?>
+-                            <div class="dn325-plugin-card" style="border: 1px solid #ddd; padding: 20px; border-radius: 4px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+-                                <h3 style="margin-top: 0;">
+-                                    <a href="<?php echo esc_url($plugin['url']); ?>" style="text-decoration: none; color: #2271b1;">
+-                                        <?php echo esc_html($plugin['name']); ?>
+-                                    </a>
+-                                </h3>
+-                                <?php if (!empty($plugin['description'])) : ?>
+-                                    <p style="color: #646970; margin-bottom: 15px;"><?php echo esc_html($plugin['description']); ?></p>
+-                                <?php endif; ?>
+-                                <a href="<?php echo esc_url($plugin['url']); ?>" class="button button-primary">
+-                                    <?php _e('Ingresar', 'dn325'); ?>
+-                                </a>
+-                            </div>
+-                        <?php endforeach; ?>
+-                    </div>
+-                </div>
+-            <?php else : ?>
+-                <div class="notice notice-info" style="margin-top: 20px;">
+-                    <p><?php _e('No se encontraron plugins de DN325 instalados.', 'dn325'); ?></p>
+-                </div>
+-            <?php endif; ?>
+-        </div>
+-        <?php
+-    }
+-
+-    /**
+-     * Obtiene la lista de plugins de DN325 instalados
+-     */
+-    private static function get_installed_dn325_plugins() {
+-        if (!function_exists('get_plugins')) {
+-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+-        }
+-
+-        $all_plugins = get_plugins();
+-        $dn325_plugins = [];
+-        
+-        // Mapeo de slugs conocidos de plugins de DN325
+-        $dn325_slugs = [
+-            'dn325-backup' => [
+-                'name' => __('DN325 Backup', 'dn325'),
+-                'description' => __('Sistema completo de backup e importaci├│n para WordPress.', 'dn325')
+-            ],
+-            'dn325-filter' => [
+-                'name' => __('DN325 Filter for WooCommerce', 'dn325'),
+-                'description' => __('Sistema avanzado de filtros AJAX para productos de WooCommerce.', 'dn325')
+-            ],
+-            'dn325-webp' => [
+-                'name' => __('DN325 WebP Converter', 'dn325'),
+-                'description' => __('Convierte autom├íticamente todas las im├ígenes subidas a formato WebP.', 'dn325')
+-            ]
+-        ];
+-
+-        // Buscar plugins de DN325 por nombre (nuevos y antiguos para compatibilidad)
+-        foreach ($all_plugins as $plugin_file => $plugin_data) {
+-            $plugin_name = $plugin_data['Name'];
+-            
+-            // Verificar si el plugin es de DN325
+-            if (strpos($plugin_name, 'DN325') === 0) {
+-                // Determinar el slug del plugin basado en el nombre o archivo
+-                $slug = null;
+-                $plugin_dir = dirname($plugin_file);
+-                
+-                if (strpos($plugin_file, 'dn325-backup') !== false || strpos($plugin_dir, 'dn325-backup') !== false) {
+-                    $slug = 'dn325-backup';
+-                } elseif (strpos($plugin_file, 'dn325-filter') !== false || strpos($plugin_dir, 'dn325-filter') !== false) {
+-                    $slug = 'dn325-filter';
+-                } elseif (strpos($plugin_file, 'dn325-webp') !== false || strpos($plugin_dir, 'dn325-webp') !== false) {
+-                    $slug = 'dn325-webp';
+-                }
+-                
+-                // Si encontramos un slug conocido, agregar el plugin
+-                if ($slug && isset($dn325_slugs[$slug])) {
+-                    // Verificar si el plugin est├í activo
+-                    $is_active = is_plugin_active($plugin_file);
+-                    
+-                    if ($is_active) {
+-                        $dn325_plugins[$slug] = [
+-                            'name' => $dn325_slugs[$slug]['name'],
+-                            'description' => !empty($plugin_data['Description']) ? $plugin_data['Description'] : $dn325_slugs[$slug]['description'],
+-                            'url' => admin_url('admin.php?page=' . $slug),
+-                            'version' => !empty($plugin_data['Version']) ? $plugin_data['Version'] : '',
+-                            'active' => true
+-                        ];
+-                    }
+-                }
+-            }
+-        }
+-
+-        return $dn325_plugins;
+-    }
+-
+-    /**
+-     * Obtiene el slug del men├║ principal
+-     */
+-    public static function get_menu_slug() {
+-        return self::$menu_slug;
+-    }
+-}
+-} // Fin de if (!class_exists('DN325_Menu'))
+\ No newline at end of file
+diff --git a/includes/class-dn325-webp-ajax.php b/includes/class-dn325-webp-ajax.php
+deleted file mode 100644
+index 103f9ab..0000000
+--- a/includes/class-dn325-webp-ajax.php
++++ /dev/null
+@@ -1,289 +0,0 @@
+-<?php
+-defined('ABSPATH') || exit;
+-
+-class DN325_WebP_Ajax {
+-
+-    public static function init() {
+-        add_action('wp_ajax_dn325_webp_convert_all', [__CLASS__, 'convert_all_images']);
+-        add_action('wp_ajax_dn325_webp_convert_single', [__CLASS__, 'convert_single_image']);
+-        add_action('wp_ajax_dn325_webp_get_count', [__CLASS__, 'get_image_count']);
+-        add_action('wp_ajax_dn325_webp_get_images_list', [__CLASS__, 'get_images_list']);
+-        add_action('wp_ajax_dn325_webp_update_references', [__CLASS__, 'update_all_references']);
+-        add_action('wp_ajax_dn325_webp_save_settings', [__CLASS__, 'handle_save_settings']);
+-    }
+-
+-    /**
+-     * Obtiene el conteo de im├ígenes convertibles
+-     */
+-    public static function get_image_count() {
+-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+-
+-        if (!current_user_can('manage_options')) {
+-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acci├│n', 'dn325-webp')]);
+-        }
+-
+-        $images = DN325_WebP_Converter::get_convertible_images();
+-        $count = count($images);
+-
+-        wp_send_json_success([
+-            'count' => $count
+-        ]);
+-    }
+-
+-    /**
+-     * Obtiene la lista de im├ígenes con detalles
+-     */
+-    public static function get_images_list() {
+-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+-
+-        if (!current_user_can('manage_options')) {
+-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acci├│n', 'dn325-webp')]);
+-        }
+-
+-        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : -1;
+-        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+-
+-        $images = DN325_WebP_Converter::get_convertible_images_list($limit, $offset);
+-
+-        wp_send_json_success([
+-            'images' => $images
+-        ]);
+-    }
+-
+-    /**
+-     * Convierte todas las im├ígenes
+-     */
+-    public static function convert_all_images() {
+-        // Aumentar tiempo de ejecuci├│n y memoria
+-        @set_time_limit(300); // 5 minutos
+-        @ini_set('max_execution_time', 300);
+-        @ini_set('memory_limit', '512M');
+-        
+-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+-
+-        if (!current_user_can('manage_options')) {
+-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acci├│n', 'dn325-webp')]);
+-        }
+-
+-        // Reducir batch size para evitar timeouts
+-        $batch_size = isset($_POST['batch_size']) ? intval($_POST['batch_size']) : 20;
+-        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+-        $selected_ids = isset($_POST['image_ids']) ? (array)$_POST['image_ids'] : [];
+-
+-        if (!empty($selected_ids)) {
+-            // Si hay IDs seleccionados, procesar solo esos en este lote
+-            $images = array_slice($selected_ids, $offset, $batch_size);
+-            $total_to_process = count($selected_ids);
+-        } else {
+-            // Si no hay IDs seleccionados, procesar todos seg├║n filtros
+-            $images = DN325_WebP_Converter::get_convertible_images($batch_size, $offset);
+-            
+-            // Obtener el total seg├║n filtros
+-            $all_convertible = DN325_WebP_Converter::get_convertible_images();
+-            $total_to_process = count($all_convertible);
+-        }
+-        
+-        if (empty($images)) {
+-            wp_send_json_success([
+-                'completed' => true,
+-                'message' => __('Todas las im├ígenes han sido convertidas', 'dn325-webp'),
+-                'converted' => 0,
+-                'total' => 0
+-            ]);
+-        }
+-
+-        $converted = 0;
+-        $errors = 0;
+-        $results = [];
+-        
+-        // Deshabilitar hooks de WordPress para mejorar rendimiento
+-        remove_action('delete_attachment', 'wp_delete_attachment_files');
+-        
+-        // Procesar im├ígenes sin actualizar referencias individualmente (m├ís r├ípido)
+-        $skip_references = isset($_POST['skip_references']) ? (bool)$_POST['skip_references'] : true;
+-        
+-        // Obtener tiempo de inicio para controlar duraci├│n
+-        $start_time = time();
+-        $max_execution_time = 240; // 4 minutos m├íximo por lote
+-        
+-        foreach ($images as $index => $attachment_id) {
+-            // Verificar tiempo transcurrido
+-            if ((time() - $start_time) > $max_execution_time) {
+-                // Si se est├í quedando sin tiempo, devolver lo procesado hasta ahora
+-                wp_send_json_success([
+-                    'completed' => false,
+-                    'converted' => $converted,
+-                    'errors' => $errors,
+-                    'processed' => $index,
+-                    'total' => count($images),
+-                    'offset' => $offset + $index,
+-                    'has_more' => true,
+-                    'timeout' => true,
+-                    'message' => sprintf(
+-                        __('Procesadas %d im├ígenes antes del timeout. Convertidas: %d, Errores: %d', 'dn325-webp'),
+-                        $index,
+-                        $converted,
+-                        $errors
+-                    )
+-                ]);
+-                return;
+-            }
+-            
+-            $result = DN325_WebP_Converter::convert_image_by_id($attachment_id, $skip_references);
+-            
+-            if ($result['success']) {
+-                $converted++;
+-            } else {
+-                $errors++;
+-            }
+-            
+-            // Solo agregar resultados si hay errores o si se solicita
+-            if (!$result['success'] || isset($_POST['include_results'])) {
+-                $results[] = [
+-                    'id' => $attachment_id,
+-                    'success' => $result['success'],
+-                    'message' => $result['message']
+-                ];
+-            }
+-        }
+-        
+-        // Re-habilitar hooks
+-        add_action('delete_attachment', 'wp_delete_attachment_files');
+-
+-        $total_processed = $offset + count($images);
+-        
+-        // Solo obtener el total si es necesario (evitar consulta costosa en cada lote)
+-        // Usar una consulta m├ís eficiente
+-        global $wpdb;
+-        $total_count = $wpdb->get_var($wpdb->prepare(
+-            "SELECT COUNT(*) FROM {$wpdb->posts} 
+-             WHERE post_type = 'attachment' 
+-             AND post_mime_type IN ('image/jpeg', 'image/jpg', 'image/png', 'image/gif')
+-             AND post_status = 'inherit'"
+-        ));
+-        
+-        $has_more = $total_processed < $total_count;
+-
+-        wp_send_json_success([
+-            'completed' => !$has_more,
+-            'converted' => $converted,
+-            'errors' => $errors,
+-            'processed' => count($images),
+-            'total' => $total_count,
+-            'offset' => $total_processed,
+-            'has_more' => $has_more,
+-            'results' => $results,
+-            'message' => sprintf(
+-                __('Procesadas %d im├ígenes. Convertidas: %d, Errores: %d', 'dn325-webp'),
+-                count($images),
+-                $converted,
+-                $errors
+-            )
+-        ]);
+-    }
+-
+-    /**
+-     * Convierte una imagen individual
+-     */
+-    public static function convert_single_image() {
+-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+-
+-        if (!current_user_can('manage_options')) {
+-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acci├│n', 'dn325-webp')]);
+-        }
+-
+-        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+-
+-        if (!$attachment_id) {
+-            wp_send_json_error(['message' => __('ID de imagen no v├ílido', 'dn325-webp')]);
+-        }
+-
+-        $result = DN325_WebP_Converter::convert_image_by_id($attachment_id);
+-
+-        if ($result['success']) {
+-            wp_send_json_success($result);
+-        } else {
+-            wp_send_json_error($result);
+-        }
+-    }
+-
+-    /**
+-     * Actualiza todas las referencias de im├ígenes convertidas en batch
+-     */
+-    public static function update_all_references() {
+-        check_ajax_referer('dn325_webp_nonce', 'nonce');
+-
+-        if (!current_user_can('manage_options')) {
+-            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acci├│n', 'dn325-webp')]);
+-        }
+-
+-        // Obtener todas las im├ígenes WebP convertidas
+-        $args = [
+-            'post_type' => 'attachment',
+-            'post_mime_type' => 'image/webp',
+-            'posts_per_page' => -1,
+-            'post_status' => 'inherit',
+-            'fields' => 'ids'
+-        ];
+-
+-        $webp_images = get_posts($args);
+-        $updated = 0;
+-
+-        foreach ($webp_images as $attachment_id) {
+-            $file_path = get_attached_file($attachment_id);
+-            if (!$file_path || !file_exists($file_path)) {
+-                continue;
+-            }
+-
+-            // Obtener el nombre base del archivo (sin extensi├│n)
+-            $file_info = pathinfo($file_path);
+-            $base_name = $file_info['filename'];
+-            $upload_dir = wp_upload_dir();
+-            $file_dir = str_replace($upload_dir['basedir'], '', $file_info['dirname']);
+-
+-            // Buscar posibles archivos originales (jpg, jpeg, png, gif)
+-            $extensions = ['jpg', 'jpeg', 'png', 'gif'];
+-            $old_urls = [];
+-            $new_url = wp_get_attachment_url($attachment_id);
+-            $new_relative_path = str_replace($upload_dir['baseurl'], '', $new_url);
+-
+-            foreach ($extensions as $ext) {
+-                $possible_old_path = $file_info['dirname'] . '/' . $base_name . '.' . $ext;
+-                if (file_exists($possible_old_path . '.webp')) {
+-                    // El WebP existe, buscar referencias al original
+-                    $old_relative = $file_dir . '/' . $base_name . '.' . $ext;
+-                    $old_full = $upload_dir['baseurl'] . $old_relative;
+-                    $old_urls[] = [$old_full, $new_url];
+-                    $old_urls[] = [$old_relative, $new_relative_path];
+-                }
+-            }
+-
+-            // Actualizar referencias si hay URLs antiguas encontradas
+-            if (!empty($old_urls)) {
+-                global $wpdb;
+-                foreach ($old_urls as $url_pair) {
+-                    list($old_url, $new_url_replace) = $url_pair;
+-                    
+-                    // Actualizar posts
+-                    $wpdb->query($wpdb->prepare(
+-                        "UPDATE {$wpdb->posts} 
+-                         SET post_content = REPLACE(post_content, %s, %s),
+-                             post_excerpt = REPLACE(post_excerpt, %s, %s)
+-                         WHERE post_content LIKE %s OR post_excerpt LIKE %s",
+-                        $old_url, $new_url_replace,
+-                        $old_url, $new_url_replace,
+-                        '%' . $wpdb->esc_like($old_url) . '%',
+-                        '%' . $wpdb->esc_like($old_url) . '%'
+-                    ));
+-                }
+-                $updated++;
+-            }
+-        }
+-
+-        wp_send_json_success([
+-            'updated' => $updated,
+-            'total' => count($webp_images),
+-            'message' => sprintf(__('Actualizadas referencias para %d im├ígenes', 'dn325-webp'), $updated)
+-        ]);
+-    }
+-}
+diff --git a/includes/class-dn325-webp-converter.php b/includes/class-dn325-webp-converter.php
+deleted file mode 100644
+index c71b39c..0000000
+--- a/includes/class-dn325-webp-converter.php
++++ /dev/null
+@@ -1,518 +0,0 @@
+-<?php
+-defined('ABSPATH') || exit;
+-
+-class DN325_WebP_Converter {
+-
+-    private static $installed_time = null;
+-
+-    public static function init() {
+-        // Obtener la fecha de instalaci├│n del plugin
+-        self::$installed_time = get_option('dn325_webp_installed_time', time());
+-        
+-        // Hook para convertir im├ígenes nuevas al subirlas
+-        add_filter('wp_handle_upload_prefilter', [__CLASS__, 'convert_uploaded_image'], 10, 1);
+-        add_filter('wp_generate_attachment_metadata', [__CLASS__, 'convert_attachment_metadata'], 10, 2);
+-        
+-        // Hook para API REST
+-        add_filter('rest_after_insert_attachment', [__CLASS__, 'convert_rest_attachment'], 10, 2);
+-    }
+-
+-    /**
+-     * Convierte la imagen subida a WebP antes de guardarla
+-     */
+-    public static function convert_uploaded_image($file) {
+-        // Verificar si es una imagen
+-        if (!self::is_image($file['type'])) {
+-            return $file;
+-        }
+-
+-        // Verificar si ya es WebP
+-        if ($file['type'] === 'image/webp') {
+-            return $file;
+-        }
+-
+-        // Convertir a WebP
+-        $webp_path = self::convert_to_webp($file['tmp_name'], $file['type']);
+-        
+-        if ($webp_path && file_exists($webp_path)) {
+-            // Reemplazar el archivo temporal
+-            @unlink($file['tmp_name']);
+-            @rename($webp_path, $file['tmp_name']);
+-            $file['type'] = 'image/webp';
+-            $file['name'] = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $file['name']);
+-        }
+-
+-        return $file;
+-    }
+-
+-    /**
+-     * Convierte todos los tama├▒os de la imagen despu├®s de generar los thumbnails
+-     */
+-    public static function convert_attachment_metadata($metadata, $attachment_id) {
+-        if (empty($metadata) || !isset($metadata['file'])) {
+-            return $metadata;
+-        }
+-
+-        // Verificar si la imagen fue subida despu├®s de la instalaci├│n del plugin
+-        $upload_time = get_post_time('U', false, $attachment_id);
+-        if ($upload_time && $upload_time < self::$installed_time) {
+-            // No convertir im├ígenes antiguas autom├íticamente
+-            return $metadata;
+-        }
+-
+-        $upload_dir = wp_upload_dir();
+-        $base_dir = $upload_dir['basedir'];
+-        $file_path = $base_dir . '/' . $metadata['file'];
+-        $file_dir = dirname($file_path);
+-        
+-        // Verificar si el archivo ya es WebP (fue convertido en convert_uploaded_image)
+-        $current_mime = get_post_mime_type($attachment_id);
+-        if ($current_mime === 'image/webp') {
+-            // El archivo ya fue convertido, solo necesitamos actualizar los nombres en metadata si es necesario
+-            // WordPress ya deber├¡a haber generado los thumbnails correctamente
+-            return $metadata;
+-        }
+-
+-        // Si llegamos aqu├¡, el archivo no fue convertido en convert_uploaded_image
+-        // Obtener URL original antes de convertir
+-        $original_url = wp_get_attachment_url($attachment_id);
+-        $original_relative_path = str_replace($upload_dir['baseurl'], '', $original_url);
+-        $old_metadata_copy = $metadata;
+-        $webp_path = false;
+-        $file_converted = false;
+-        
+-        // Convertir el archivo original
+-        if (file_exists($file_path)) {
+-            $webp_path = self::convert_file_to_webp($file_path);
+-            if ($webp_path && $webp_path !== $file_path) {
+-                $file_converted = true;
+-                // Actualizar el nombre del archivo en metadata
+-                $metadata['file'] = str_replace($base_dir . '/', '', $webp_path);
+-                
+-                // Actualizar el archivo adjunto en la base de datos
+-                update_attached_file($attachment_id, $webp_path);
+-                
+-                // Actualizar tipo MIME
+-                global $wpdb;
+-                $wpdb->update(
+-                    $wpdb->posts,
+-                    ['post_mime_type' => 'image/webp'],
+-                    ['ID' => $attachment_id],
+-                    ['%s'],
+-                    ['%d']
+-                );
+-            }
+-        }
+-
+-        // Convertir todos los tama├▒os
+-        if (isset($metadata['sizes']) && is_array($metadata['sizes'])) {
+-            foreach ($metadata['sizes'] as $size => $size_data) {
+-                if (isset($size_data['file'])) {
+-                    $size_path = $file_dir . '/' . $size_data['file'];
+-                    if (file_exists($size_path)) {
+-                        $webp_size_path = self::convert_file_to_webp($size_path);
+-                        if ($webp_size_path && $webp_size_path !== $size_path) {
+-                            // Actualizar el nombre del archivo en metadata
+-                            $metadata['sizes'][$size]['file'] = basename($webp_size_path);
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-        
+-        // No actualizar referencias aqu├¡ para im├ígenes nuevas (ya se convierten antes de guardarse)
+-        // Las referencias se actualizar├ín solo si es necesario m├ís adelante
+-
+-        return $metadata;
+-    }
+-
+-    /**
+-     * Convierte im├ígenes subidas v├¡a REST API
+-     */
+-    public static function convert_rest_attachment($attachment, $request) {
+-        $attachment_id = $attachment->ID;
+-        $metadata = wp_get_attachment_metadata($attachment_id);
+-        
+-        if ($metadata) {
+-            self::convert_attachment_metadata($metadata, $attachment_id);
+-        }
+-        
+-        return $attachment;
+-    }
+-
+-    /**
+-     * Convierte un archivo espec├¡fico a WebP
+-     * Retorna la ruta del archivo WebP si la conversi├│n fue exitosa, o false en caso contrario
+-     */
+-    public static function convert_file_to_webp($file_path) {
+-        if (!file_exists($file_path)) {
+-            return false;
+-        }
+-
+-        // Verificaci├│n r├ípida de extensi├│n antes de wp_check_filetype (m├ís costoso)
+-        $extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+-        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+-            return false;
+-        }
+-
+-        $file_info = wp_check_filetype($file_path);
+-        $mime_type = $file_info['type'];
+-        
+-        if (!self::is_image($mime_type) || $mime_type === 'image/webp') {
+-            return false;
+-        }
+-
+-        $webp_path = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $file_path);
+-        
+-        // Verificar si ya existe el WebP (evitar conversi├│n duplicada)
+-        if (file_exists($webp_path)) {
+-            @unlink($file_path);
+-            return $webp_path;
+-        }
+-        
+-        if (self::convert_to_webp($file_path, $mime_type, $webp_path)) {
+-            // Eliminar el archivo original si la conversi├│n fue exitosa
+-            if ($webp_path !== $file_path && file_exists($webp_path)) {
+-                @unlink($file_path);
+-            }
+-            return $webp_path;
+-        }
+-        
+-        return false;
+-    }
+-
+-    /**
+-     * Convierte una imagen a WebP usando GD o Imagick
+-     */
+-    private static function convert_to_webp($source_path, $mime_type, $destination_path = null) {
+-        if (!file_exists($source_path)) {
+-            return false;
+-        }
+-
+-        if ($destination_path === null) {
+-            $destination_path = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $source_path);
+-        }
+-
+-        // Verificar si GD o Imagick est├ín disponibles
+-        if (!function_exists('imagecreatefromjpeg') && !extension_loaded('imagick')) {
+-            return false;
+-        }
+-
+-        $image = null;
+-        $quality = 100; // 100% de calidad como solicitado
+-
+-        // Cargar la imagen seg├║n el tipo
+-        switch ($mime_type) {
+-            case 'image/jpeg':
+-            case 'image/jpg':
+-                if (function_exists('imagecreatefromjpeg')) {
+-                    $image = @imagecreatefromjpeg($source_path);
+-                } elseif (extension_loaded('imagick')) {
+-                    $imagick = new Imagick($source_path);
+-                    $imagick->setImageFormat('webp');
+-                    $imagick->setImageCompressionQuality($quality);
+-                    $imagick->writeImage($destination_path);
+-                    $imagick->clear();
+-                    $imagick->destroy();
+-                    return file_exists($destination_path) ? $destination_path : false;
+-                }
+-                break;
+-            
+-            case 'image/png':
+-                if (function_exists('imagecreatefrompng')) {
+-                    $image = @imagecreatefrompng($source_path);
+-                    // Preservar transparencia
+-                    imagealphablending($image, false);
+-                    imagesavealpha($image, true);
+-                } elseif (extension_loaded('imagick')) {
+-                    $imagick = new Imagick($source_path);
+-                    $imagick->setImageFormat('webp');
+-                    $imagick->setImageCompressionQuality($quality);
+-                    $imagick->writeImage($destination_path);
+-                    $imagick->clear();
+-                    $imagick->destroy();
+-                    return file_exists($destination_path) ? $destination_path : false;
+-                }
+-                break;
+-            
+-            case 'image/gif':
+-                if (extension_loaded('imagick')) {
+-                    $imagick = new Imagick($source_path);
+-                    $imagick->setImageFormat('webp');
+-                    $imagick->setImageCompressionQuality($quality);
+-                    $imagick->writeImage($destination_path);
+-                    $imagick->clear();
+-                    $imagick->destroy();
+-                    return file_exists($destination_path) ? $destination_path : false;
+-                }
+-                break;
+-        }
+-
+-        if (!$image) {
+-            return false;
+-        }
+-
+-        // Convertir a WebP usando GD
+-        if (function_exists('imagewebp')) {
+-            $result = imagewebp($image, $destination_path, $quality);
+-            imagedestroy($image);
+-            
+-            if ($result && file_exists($destination_path)) {
+-                // Optimizar el tama├▒o del archivo si es PNG (eliminar chunks innecesarios)
+-                if ($mime_type === 'image/png') {
+-                    // WebP ya est├í optimizado, no necesitamos hacer nada m├ís
+-                }
+-                return $destination_path;
+-            }
+-        }
+-
+-        return false;
+-    }
+-
+-    /**
+-     * Verifica si un tipo MIME es una imagen
+-     */
+-    private static function is_image($mime_type) {
+-        return in_array($mime_type, [
+-            'image/jpeg',
+-            'image/jpg',
+-            'image/png',
+-            'image/gif',
+-            'image/webp'
+-        ]);
+-    }
+-
+-    /**
+-     * Obtiene todas las im├ígenes que pueden ser convertidas
+-     */
+-    public static function get_convertible_images($limit = -1, $offset = 0) {
+-        require_once DN325_WEBP_PATH . 'includes/class-dn325-webp-settings.php';
+-        
+-        $args = [
+-            'post_type' => 'attachment',
+-            'post_mime_type' => ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'],
+-            'posts_per_page' => $limit,
+-            'offset' => $offset,
+-            'post_status' => 'inherit',
+-            'fields' => 'ids'
+-        ];
+-
+-        // Aplicar filtro de a├▒o/mes si est├í configurado
+-        $filter_date = DN325_WebP_Settings::get_filter_date();
+-        if ($filter_date && (!empty($filter_date['year']) || !empty($filter_date['month']))) {
+-            $date_query = [];
+-            if (!empty($filter_date['year'])) {
+-                $date_query['year'] = intval($filter_date['year']);
+-            }
+-            if (!empty($filter_date['month'])) {
+-                $date_query['month'] = intval($filter_date['month']);
+-            }
+-            $args['date_query'] = [$date_query];
+-        }
+-
+-        return get_posts($args);
+-    }
+-
+-    /**
+-     * Obtiene una lista detallada de im├ígenes convertibles
+-     */
+-    public static function get_convertible_images_list($limit = -1, $offset = 0) {
+-        $image_ids = self::get_convertible_images($limit, $offset);
+-        $images_list = [];
+-
+-        foreach ($image_ids as $id) {
+-            $thumbnail = wp_get_attachment_image_src($id, 'thumbnail');
+-            $images_list[] = [
+-                'id' => $id,
+-                'title' => get_the_title($id),
+-                'thumbnail' => $thumbnail ? $thumbnail[0] : '',
+-                'url' => wp_get_attachment_url($id),
+-                'mime' => get_post_mime_type($id),
+-                'date' => get_the_date('', $id)
+-            ];
+-        }
+-
+-        return $images_list;
+-    }
+-
+-    /**
+-     * Convierte una imagen espec├¡fica por ID
+-     * @param int $attachment_id ID del attachment
+-     * @param bool $skip_references Si es true, no actualiza referencias en BD (m├ís r├ípido)
+-     */
+-    public static function convert_image_by_id($attachment_id, $skip_references = false) {
+-        $file_path = get_attached_file($attachment_id);
+-        
+-        if (!$file_path || !file_exists($file_path)) {
+-            return [
+-                'success' => false,
+-                'message' => __('Archivo no encontrado', 'dn325-webp')
+-            ];
+-        }
+-
+-        $mime_type = get_post_mime_type($attachment_id);
+-        
+-        if (!self::is_image($mime_type) || $mime_type === 'image/webp') {
+-            return [
+-                'success' => false,
+-                'message' => __('La imagen ya es WebP o no es una imagen v├ílida', 'dn325-webp')
+-            ];
+-        }
+-
+-        $webp_path = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $file_path);
+-        
+-        // Obtener metadatos antiguos antes de convertir
+-        $old_metadata = wp_get_attachment_metadata($attachment_id);
+-        
+-        // Obtener URLs originales antes de convertir (para actualizar referencias)
+-        $original_url = wp_get_attachment_url($attachment_id);
+-        $upload_dir = wp_upload_dir();
+-        $original_relative_path = str_replace($upload_dir['baseurl'], '', $original_url);
+-        
+-        if (self::convert_to_webp($file_path, $mime_type, $webp_path)) {
+-            // Actualizar el archivo adjunto
+-            update_attached_file($attachment_id, $webp_path);
+-            
+-            // Actualizar metadata solo si es necesario (evitar regeneraci├│n costosa)
+-            // Actualizar manualmente los metadatos b├ísicos en lugar de regenerar todo
+-            $existing_metadata = wp_get_attachment_metadata($attachment_id);
+-            if ($existing_metadata) {
+-                // Actualizar solo el nombre del archivo en metadata
+-                $upload_dir = wp_upload_dir();
+-                $existing_metadata['file'] = str_replace($upload_dir['basedir'] . '/', '', $webp_path);
+-                wp_update_attachment_metadata($attachment_id, $existing_metadata);
+-                $metadata = $existing_metadata;
+-            } else {
+-                // Solo regenerar si no hay metadata existente
+-                $metadata = wp_generate_attachment_metadata($attachment_id, $webp_path);
+-                wp_update_attachment_metadata($attachment_id, $metadata);
+-            }
+-            
+-            // Actualizar el tipo MIME en la base de datos
+-            global $wpdb;
+-            $wpdb->update(
+-                $wpdb->posts,
+-                ['post_mime_type' => 'image/webp'],
+-                ['ID' => $attachment_id],
+-                ['%s'],
+-                ['%d']
+-            );
+-            
+-            // Eliminar el archivo original
+-            if ($webp_path !== $file_path && file_exists($file_path)) {
+-                @unlink($file_path);
+-            }
+-            
+-            // Actualizar referencias solo si no se omite (para mejorar rendimiento)
+-            if (!$skip_references) {
+-                $new_url = wp_get_attachment_url($attachment_id);
+-                $new_relative_path = str_replace($upload_dir['baseurl'], '', $new_url);
+-                
+-                // Actualizar todas las referencias en la base de datos
+-                self::update_image_references($attachment_id, $original_url, $new_url, $original_relative_path, $new_relative_path, $old_metadata, $metadata);
+-            }
+-            
+-            // Limpiar cach├®
+-            clean_post_cache($attachment_id);
+-
+-            // Convertir todos los tama├▒os existentes (en segundo plano, sin esperar)
+-            if (isset($old_metadata['sizes']) && is_array($old_metadata['sizes']) && !$skip_references) {
+-                $file_dir = dirname($file_path);
+-                // Convertir thumbnails de forma as├¡ncrona o en batch
+-                foreach ($old_metadata['sizes'] as $size => $size_data) {
+-                    if (isset($size_data['file'])) {
+-                        $size_path = $file_dir . '/' . $size_data['file'];
+-                        if (file_exists($size_path)) {
+-                            // Convertir sin actualizar referencias (m├ís r├ípido)
+-                            self::convert_file_to_webp($size_path);
+-                        }
+-                    }
+-                }
+-            }
+-
+-            return [
+-                'success' => true,
+-                'message' => __('Imagen convertida exitosamente', 'dn325-webp')
+-            ];
+-        }
+-
+-        return [
+-            'success' => false,
+-            'message' => __('Error al convertir la imagen', 'dn325-webp')
+-        ];
+-    }
+-
+-    /**
+-     * Actualiza todas las referencias a una imagen en la base de datos
+-     * Versi├│n optimizada que hace menos queries
+-     */
+-    private static function update_image_references($attachment_id, $old_url, $new_url, $old_relative_path, $new_relative_path, $old_metadata, $new_metadata) {
+-        global $wpdb;
+-        
+-        // Solo actualizar las URLs principales (completa y relativa)
+-        // Las URLs de thumbnails se actualizar├ín autom├íticamente cuando WordPress las solicite
+-        $replacements = [
+-            [$old_url, $new_url],
+-            [$old_relative_path, $new_relative_path],
+-        ];
+-        
+-        // Agregar URL sin protocolo si es diferente
+-        $old_url_no_protocol = str_replace(['http://', 'https://'], '', $old_url);
+-        $new_url_no_protocol = str_replace(['http://', 'https://'], '', $new_url);
+-        if ($old_url_no_protocol !== $old_url) {
+-            $replacements[] = [$old_url_no_protocol, $new_url_no_protocol];
+-        }
+-        
+-        // Usar transacciones para mejorar rendimiento
+-        $wpdb->query('START TRANSACTION');
+-        
+-        try {
+-            // Actualizar posts (post_content y post_excerpt en una sola query optimizada)
+-            foreach ($replacements as $replacement) {
+-                list($old_pattern, $new_pattern) = $replacement;
+-                
+-                // Actualizar post_content y post_excerpt en una sola query
+-                $wpdb->query($wpdb->prepare(
+-                    "UPDATE {$wpdb->posts} 
+-                     SET post_content = REPLACE(post_content, %s, %s),
+-                         post_excerpt = REPLACE(post_excerpt, %s, %s)
+-                     WHERE post_content LIKE %s OR post_excerpt LIKE %s",
+-                    $old_pattern, $new_pattern,
+-                    $old_pattern, $new_pattern,
+-                    '%' . $wpdb->esc_like($old_pattern) . '%',
+-                    '%' . $wpdb->esc_like($old_pattern) . '%'
+-                ));
+-                
+-                // Actualizar postmeta, usermeta y options en queries separadas pero optimizadas
+-                // Solo actualizar si realmente contiene la URL
+-                $wpdb->query($wpdb->prepare(
+-                    "UPDATE {$wpdb->postmeta} SET meta_value = REPLACE(meta_value, %s, %s) 
+-                     WHERE meta_value LIKE %s",
+-                    $old_pattern, $new_pattern,
+-                    '%' . $wpdb->esc_like($old_pattern) . '%'
+-                ));
+-                
+-                $wpdb->query($wpdb->prepare(
+-                    "UPDATE {$wpdb->usermeta} SET meta_value = REPLACE(meta_value, %s, %s) 
+-                     WHERE meta_value LIKE %s",
+-                    $old_pattern, $new_pattern,
+-                    '%' . $wpdb->esc_like($old_pattern) . '%'
+-                ));
+-                
+-                $wpdb->query($wpdb->prepare(
+-                    "UPDATE {$wpdb->options} SET option_value = REPLACE(option_value, %s, %s) 
+-                     WHERE option_value LIKE %s",
+-                    $old_pattern, $new_pattern,
+-                    '%' . $wpdb->esc_like($old_pattern) . '%'
+-                ));
+-            }
+-            
+-            $wpdb->query('COMMIT');
+-        } catch (Exception $e) {
+-            $wpdb->query('ROLLBACK');
+-        }
+-        
+-        // Limpiar cach├® de objetos (solo una vez al final)
+-        wp_cache_flush();
+-    }
+-}
+diff --git a/includes/class-dn325-webp-loader.php b/includes/class-dn325-webp-loader.php
+deleted file mode 100644
+index d6be041..0000000
+--- a/includes/class-dn325-webp-loader.php
++++ /dev/null
+@@ -1,27 +0,0 @@
+-<?php
+-defined('ABSPATH') || exit;
+-
+-class DN325_WebP_Loader {
+-
+-    public static function init() {
+-        if (is_admin()) {
+-            self::load_admin();
+-        }
+-        self::load_converter();
+-    }
+-
+-    private static function load_admin() {
+-        if (class_exists('DN325_WebP_Admin')) {
+-            DN325_WebP_Admin::init();
+-        }
+-        if (class_exists('DN325_WebP_Ajax')) {
+-            DN325_WebP_Ajax::init();
+-        }
+-    }
+-
+-    private static function load_converter() {
+-        if (class_exists('DN325_WebP_Converter')) {
+-            DN325_WebP_Converter::init();
+-        }
+-    }
+-}
+diff --git a/includes/class-dn325-webp-settings.php b/includes/class-dn325-webp-settings.php
+deleted file mode 100644
+index 05189e7..0000000
+--- a/includes/class-dn325-webp-settings.php
++++ /dev/null
+@@ -1,46 +0,0 @@
+-<?php
+-defined('ABSPATH') || exit;
+-
+-/**
+- * Clase para gestionar las configuraciones del plugin WebP Converter
+- */
+-class DN325_WebP_Settings {
+-
+-    /**
+-     * Obtiene todas las configuraciones
+-     */
+-    public static function get_settings() {
+-        return [
+-            'filter_year' => get_option('dn325_webp_filter_year', ''),
+-            'filter_month' => get_option('dn325_webp_filter_month', ''),
+-        ];
+-    }
+-
+-    /**
+-     * Guarda las configuraciones
+-     */
+-    public static function save_settings($settings) {
+-        update_option('dn325_webp_filter_year', isset($settings['filter_year']) ? sanitize_text_field($settings['filter_year']) : '');
+-        update_option('dn325_webp_filter_month', isset($settings['filter_month']) ? sanitize_text_field($settings['filter_month']) : '');
+-        
+-        return true;
+-    }
+-
+-    /**
+-     * Obtiene el a├▒o y mes configurados para filtrar
+-     */
+-    public static function get_filter_date() {
+-        $settings = self::get_settings();
+-        $year = $settings['filter_year'];
+-        $month = $settings['filter_month'];
+-        
+-        if (empty($year) || empty($month)) {
+-            return null;
+-        }
+-        
+-        return [
+-            'year' => $year,
+-            'month' => str_pad($month, 2, '0', STR_PAD_LEFT)
+-        ];
+-    }
+-}
+diff --git a/readme.txt b/readme.txt
+index 7f4ed77..846fdc3 100644
+--- a/readme.txt
++++ b/readme.txt
+@@ -1,10 +1,10 @@
+-=== DN325 WebP Converter ===
++=== Nabi WebP Converter ===
+ Contributors: Joel Pallero
+ Tags: webp, images, conversion, performance, media
+ Requires at least: 6.0
+ Tested up to: 6.4
+ Requires PHP: 7.4
+-Stable tag: 1.0.0
++Stable tag: 1.0.1
+ License: GPLv2 or later
+ License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ 
+@@ -12,7 +12,7 @@ Convierte autom├íticamente todas las im├ígenes subidas a formato WebP con 100% d
+ 
+ == Description ==
+ 
+-DN325 WebP Converter es una soluci├│n integral para optimizar el rendimiento de tu sitio WordPress mediante el uso del formato de imagen WebP. A diferencia de otros plugins, este se enfoca en la m├íxima calidad (100%) manteniendo el peso del archivo reducido.
++Nabi WebP Converter es una soluci├│n integral para optimizar el rendimiento de tu sitio WordPress mediante el uso del formato de imagen WebP. A diferencia de otros plugins, este se enfoca en la m├íxima calidad (100%) manteniendo el peso del archivo reducido.
+ 
+ **Caracter├¡sticas principales:**
+ * Conversi├│n autom├ítica al subir nuevas im├ígenes.
+@@ -42,5 +42,11 @@ WebP es soportado por la gran mayor├¡a de navegadores modernos (Chrome, Firefox,
+ 
+ == Changelog ==
+ 
++= 1.0.1 =
++* Correcci├│n de errores fatales en la carga de dependencias de clases.
++* Desacople total del plugin para que funcione sin dependencias externas (Nabi Master).
++
+ = 1.0.0 =
+ * Versi├│n inicial con soporte para conversi├│n autom├ítica y selectiva manual.
++
++
+diff --git a/uninstall.php b/uninstall.php
+index 080e645..1479a02 100644
+--- a/uninstall.php
++++ b/uninstall.php
+@@ -2,7 +2,7 @@
+ /**
+  * Fired when the plugin is uninstalled.
+  *
+- * @package DN325_WebP_Converter
++ * @package NABI_WebP_Converter
+  */
+ 
+ // Si no se llama desde WordPress, salir
+@@ -18,27 +18,29 @@ if (!current_user_can('activate_plugins')) {
+ /**
+  * Elimina todas las opciones/configuraciones de la base de datos
+  */
+-function dn325_webp_converter_delete_database_options() {
++function NABI_webp_converter_delete_database_options() {
+     global $wpdb;
+     
+     // Eliminar opciones que puedan estar relacionadas con el plugin
+-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'dn325_webp_%'");
++    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'NABI_webp_%'");
+     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'vira_webp_%'");
+-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_dn325_webp_%'");
+-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_dn325_webp_%'");
++    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_NABI_webp_%'");
++    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_NABI_webp_%'");
+     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_vira_webp_%'");
+     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_vira_webp_%'");
+-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_dn325_webp_%'");
+-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_timeout_dn325_webp_%'");
++    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_NABI_webp_%'");
++    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_timeout_NABI_webp_%'");
+     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_vira_webp_%'");
+     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_timeout_vira_webp_%'");
+     
+     // Limpiar meta de usuarios si hay alguna
+-    $wpdb->query("DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE 'dn325_webp_%' OR meta_key LIKE 'vira_webp_%'");
++    $wpdb->query("DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE 'NABI_webp_%' OR meta_key LIKE 'vira_webp_%'");
+     
+     // Limpiar meta de posts si hay alguna
+-    $wpdb->query("DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE 'dn325_webp_%' OR meta_key LIKE 'vira_webp_%'");
++    $wpdb->query("DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE 'NABI_webp_%' OR meta_key LIKE 'vira_webp_%'");
+ }
+ 
+ // Ejecutar limpieza
+-dn325_webp_converter_delete_database_options();
++NABI_webp_converter_delete_database_options();
++
++

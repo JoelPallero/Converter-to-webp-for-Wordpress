@@ -23,9 +23,15 @@ class NABI_WebP_Admin {
         }
         
         NABI_Master::add_submenu(
+<<<<<<< HEAD
             __('Nabi WebP Converter', 'Nabi-webp'),
             __('WebP Converter', 'Nabi-webp'),
             'Nabi-webp',
+=======
+            __('Nabi WebP Converter', 'nabi-webp'),
+            __('WebP Converter', 'nabi-webp'),
+            'nabi-webp',
+>>>>>>> 589b2fb (Standardization of Nabi ecosystem and slug refactoring v1.0.1)
             [__CLASS__, 'render_admin_page']
         );
     }
@@ -38,12 +44,20 @@ class NABI_WebP_Admin {
         $is_webp_page = false;
         
         // Verificar por hook
+<<<<<<< HEAD
         if (strpos($hook, 'Nabi-webp') !== false || strpos($hook, 'Nabi-plugins') !== false) {
+=======
+        if (strpos($hook, 'nabi-webp') !== false) {
+>>>>>>> 589b2fb (Standardization of Nabi ecosystem and slug refactoring v1.0.1)
             $is_webp_page = true;
         }
         
         // Verificar por parámetro GET
+<<<<<<< HEAD
         if (isset($_GET['page']) && $_GET['page'] === 'Nabi-webp') {
+=======
+        if (isset($_GET['page']) && $_GET['page'] === 'nabi-webp') {
+>>>>>>> 589b2fb (Standardization of Nabi ecosystem and slug refactoring v1.0.1)
             $is_webp_page = true;
         }
         

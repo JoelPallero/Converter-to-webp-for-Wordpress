@@ -286,6 +286,30 @@ class NABI_WebP_Ajax {
             'message' => sprintf(__('Actualizadas referencias para %d imágenes', 'Nabi-webp'), $updated)
         ]);
     }
+    /**
+     * Guarda la configuración del plugin
+     */
+    public static function handle_save_settings() {
+        check_ajax_referer('NABI_webp_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('No tienes permisos para realizar esta acción', 'Nabi-webp')]);
+        }
+
+        if (!class_exists('NABI_WebP_Settings')) {
+            require_once NABI_WEBP_PATH . 'includes/class-nabi-webp-settings.php';
+        }
+
+        $settings = [
+            'compression_quality' => isset($_POST['compression_quality']) ? intval($_POST['compression_quality']) : 80,
+            'auto_convert' => isset($_POST['auto_convert']) ? ($_POST['auto_convert'] === 'true' || $_POST['auto_convert'] === '1' || $_POST['auto_convert'] === true) : true,
+            'keep_original' => isset($_POST['keep_original']) ? ($_POST['keep_original'] === 'true' || $_POST['keep_original'] === '1' || $_POST['keep_original'] === true) : true,
+        ];
+
+        NABI_WebP_Settings::save_settings($settings);
+
+        wp_send_json_success(['message' => __('Configuración guardada correctamente', 'Nabi-webp')]);
+    }
 }
 
 

@@ -221,9 +221,11 @@ class NABI_WebP_Converter {
             case 'image/png':
                 if (function_exists('imagecreatefrompng')) {
                     $image = @imagecreatefrompng($source_path);
-                    // Preservar transparencia
-                    imagealphablending($image, false);
-                    imagesavealpha($image, true);
+                    if ($image) {
+                        // Preservar transparencia
+                        imagealphablending($image, false);
+                        imagesavealpha($image, true);
+                    }
                 } elseif (extension_loaded('imagick')) {
                     $imagick = new Imagick($source_path);
                     $imagick->setImageFormat('webp');

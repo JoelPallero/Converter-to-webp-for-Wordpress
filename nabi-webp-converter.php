@@ -5,7 +5,11 @@
  * Version: 1.0.1
  * Author: Joel Pallero
  * Author URI: https://joelpallero.com.ar
+<<<<<<< HEAD
  * Plugin URI: https://joelpallero.com.ar/productos
+=======
+ * Plugin URI: https://joelpallero.com.ar/store/nabi-webp
+>>>>>>> 589b2fb (Standardization of Nabi ecosystem and slug refactoring v1.0.1)
  * Text Domain: Nabi-webp
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -28,7 +32,20 @@ require_once NABI_WEBP_PATH . 'includes/class-nabi-webp-ajax.php';
 require_once NABI_WEBP_PATH . 'admin/class-nabi-webp-admin.php';
 
 // Hooks de inicialización
+<<<<<<< HEAD
 add_action('plugins_loaded', ['NABI_WebP_Loader', 'init']);
+=======
+add_action('plugins_loaded', function() {
+    if (!class_exists('NABI_Master')) {
+        require_once NABI_WEBP_PATH . 'includes/nabi-master/class-nabi-master.php';
+    }
+    NABI_Master::init();
+
+    if (class_exists('NABI_WebP_Loader')) {
+        NABI_WebP_Loader::init();
+    }
+});
+>>>>>>> 589b2fb (Standardization of Nabi ecosystem and slug refactoring v1.0.1)
 
 // Cargar textdomain
 add_action('plugins_loaded', 'NABI_webp_load_textdomain');
